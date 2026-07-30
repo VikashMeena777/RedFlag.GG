@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/gavel",
+      "schedule": "*/5 * * * *"
+    }
+  ],
+  "functions": {
+    "app/api/cron/gavel/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/card/[slug]/route.tsx": {
+      "maxDuration": 30
+    }
+  }
+}

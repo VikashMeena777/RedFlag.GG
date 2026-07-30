@@ -1,0 +1,461 @@
+@import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════════════════════════
+   REDFLAG.GG — "COURT BRUTALISM"
+   Legal docket meets sticker chaos.
+
+   Tailwind v4: design tokens live here in `@theme`, NOT in a
+   tailwind.config.ts (there isn't one). Every token below generates
+   utilities, e.g. --color-flag-red → bg-flag-red / text-flag-red.
+
+   Design law: a screenshot must read as an OFFICIAL VERDICT at
+   thumbnail size. That means paper, heavy ink, hard shadows, and
+   stamps — never neon, glass, or pastel.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── Surfaces: manila / xerox paper ───────────────────────────── */
+  --color-paper: #f4efe6;
+  --color-paper-dim: #e7dfd0;
+  --color-paper-bright: #fbf8f2;
+
+  /* ── Ink: borders, type, hard shadows ─────────────────────────── */
+  --color-ink: #12100e;
+  --color-ink-soft: #6e665a;
+  --color-ink-faint: #a89e8d;
+
+  /* ── Verdict flags ────────────────────────────────────────────── */
+  --color-flag-red: #e4172b;
+  --color-flag-red-lo: #fbd9dc;
+  --color-flag-green: #12a150;
+  --color-flag-green-lo: #d5f0e0;
+
+  /* ── Authority accent: the AI judge's ink stamp ───────────────── */
+  --color-judge: #2a1fd6;
+  --color-judge-lo: #dcdafb;
+
+  /* ── Emphasis ─────────────────────────────────────────────────── */
+  --color-highlighter: #ffe94a;
+  --color-tape: #e3d3a4;
+
+  /* ── Typography ───────────────────────────────────────────────── */
+  --font-display: var(--font-anton), 'Arial Narrow', system-ui, sans-serif;
+  --font-docket: var(--font-space-mono), ui-monospace, monospace;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* ── Breakpoint for very small phones ─────────────────────────── */
+  --breakpoint-xs: 380px;
+
+  /* ── Motion: all ≤ 350ms. This is a court, not a carnival. ────── */
+  --animate-gavel-slam: gavel-slam 320ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  --animate-stamp-in: stamp-in 340ms cubic-bezier(0.16, 1.2, 0.3, 1) both;
+  --animate-rise: rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-bar-fill: bar-fill 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pulse-live: pulse-live 1.6s ease-in-out infinite;
+  --animate-ticker: ticker 32s linear infinite;
+
+  @keyframes gavel-slam {
+    0% {
+      transform: rotate(-32deg) translateY(-18px);
+      opacity: 0;
+    }
+    60% {
+      transform: rotate(6deg) translateY(0);
+      opacity: 1;
+    }
+    100% {
+      transform: rotate(0deg) translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes stamp-in {
+    0% {
+      transform: scale(1.7) rotate(-16deg);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1) rotate(-7deg);
+      opacity: 1;
+    }
+  }
+
+  @keyframes rise {
+    0% {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes bar-fill {
+    0% {
+      transform: scaleX(0);
+    }
+    100% {
+      transform: scaleX(1);
+    }
+  }
+
+  @keyframes pulse-live {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  @keyframes ticker {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BASE
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    /* Hard edges are the brand. Opt into radius deliberately. */
+    border-radius: 0;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+    /* Paper grain: a faint dot screen + a warm vignette. */
+    background-image:
+      radial-gradient(
+        circle at 1px 1px,
+        rgb(18 16 14 / 0.055) 1px,
+        transparent 0
+      ),
+      radial-gradient(
+        ellipse 120% 80% at 50% -10%,
+        rgb(227 211 164 / 0.28),
+        transparent 60%
+      );
+    background-size:
+      4px 4px,
+      100% 100%;
+    min-height: 100dvh;
+  }
+
+  /* Anton only ever ships uppercase; bake it in. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    line-height: 0.92;
+    font-weight: 400;
+  }
+
+  /* Focus must be obvious against paper — accessibility, not decoration. */
+  :focus-visible {
+    outline: 3px solid var(--color-judge);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-highlighter);
+    color: var(--color-ink);
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITIES — the brutalist kit
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Borders & hard shadows ────────────────────────────────────── */
+
+@utility brut {
+  border: 3px solid var(--color-ink);
+}
+
+@utility brut-thin {
+  border: 2px solid var(--color-ink);
+}
+
+@utility brut-shadow {
+  box-shadow: 6px 6px 0 0 var(--color-ink);
+}
+
+@utility brut-shadow-sm {
+  box-shadow: 3px 3px 0 0 var(--color-ink);
+}
+
+@utility brut-shadow-lg {
+  box-shadow: 10px 10px 0 0 var(--color-ink);
+}
+
+@utility brut-shadow-red {
+  box-shadow: 6px 6px 0 0 var(--color-flag-red);
+}
+
+@utility brut-shadow-green {
+  box-shadow: 6px 6px 0 0 var(--color-flag-green);
+}
+
+@utility brut-shadow-judge {
+  box-shadow: 6px 6px 0 0 var(--color-judge);
+}
+
+/*
+ * Tactile press: the element physically travels into its own shadow.
+ * Used on every primary action — makes voting feel like stamping.
+ */
+@utility brut-press {
+  transition:
+    transform 110ms ease-out,
+    box-shadow 110ms ease-out;
+
+  &:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 0 var(--color-ink);
+  }
+}
+
+@utility brut-hover-lift {
+  transition:
+    transform 140ms ease-out,
+    box-shadow 140ms ease-out;
+
+  &:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 0 var(--color-ink);
+  }
+}
+
+/* ── Rubber-ink stamp ──────────────────────────────────────────── */
+
+/*
+ * The verdict stamp. Double dashed border + rotation + letterpress
+ * shadow so it reads as physically pressed onto the page.
+ */
+@utility stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.35em 0.7em;
+  border: 3px double currentColor;
+  font-family: var(--font-docket);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  transform: rotate(-7deg);
+  opacity: 0.88;
+  text-shadow: 1px 1px 0 rgb(255 255 255 / 0.4);
+}
+
+@utility stamp-straight {
+  transform: rotate(0deg);
+}
+
+/* ── Masking tape (category tags) ──────────────────────────────── */
+
+@utility tape {
+  position: relative;
+  display: inline-block;
+  padding: 0.25em 0.85em;
+  background: var(--color-tape);
+  border-left: 1px dashed rgb(18 16 14 / 0.28);
+  border-right: 1px dashed rgb(18 16 14 / 0.28);
+  font-family: var(--font-docket);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  box-shadow: 0 1px 0 rgb(18 16 14 / 0.12);
+  transform: rotate(-1.5deg);
+}
+
+/* ── Docket chrome ─────────────────────────────────────────────── */
+
+@utility docket-label {
+  font-family: var(--font-docket);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-ink-soft);
+}
+
+@utility docket-rule {
+  border-top: 2px dashed rgb(18 16 14 / 0.28);
+}
+
+/* Xerox halftone overlay for card texture. */
+@utility halftone {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: repeating-radial-gradient(
+      circle at 0 0,
+      transparent 0,
+      rgb(18 16 14 / 0.06) 1px,
+      transparent 2px
+    );
+    background-size: 5px 5px;
+  }
+}
+
+/* Redaction bar for auto-stripped PII. */
+@utility redact {
+  background: var(--color-ink);
+  color: transparent;
+  user-select: none;
+  padding: 0 0.3em;
+  border-radius: 1px;
+}
+
+/* Marker highlight behind inline text. */
+@utility marker {
+  background: linear-gradient(
+    to bottom,
+    transparent 12%,
+    var(--color-highlighter) 12%,
+    var(--color-highlighter) 88%,
+    transparent 88%
+  );
+  padding: 0 0.15em;
+}
+
+/* ── Layout helpers ────────────────────────────────────────────── */
+
+@utility court-container {
+  width: 100%;
+  max-width: 42.5rem; /* 680px — single-column docket */
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@utility court-container-wide {
+  width: 100%;
+  max-width: 64rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESPONSIVE — heavier borders on larger screens
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 640px) {
+  .brut {
+    border-width: 4px;
+  }
+}
+
+/* Sub-380px safety: keep the two-button jury box from overflowing. */
+@media (max-width: 379px) {
+  .brut,
+  .brut-thin {
+    border-width: 2px;
+  }
+
+  .brut-shadow,
+  .brut-shadow-red,
+  .brut-shadow-green,
+  .brut-shadow-judge {
+    box-shadow: 4px 4px 0 0 currentColor;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — reduced motion
+   Honours the OS setting AND a manual toggle (html.reduce-motion),
+   mirroring the Framer Motion <MotionConfig reducedMotion> provider.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Reduced motion must not freeze a stamp mid-flight at scale(1.7). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-stamp-in {
+    transform: rotate(-7deg) !important;
+    opacity: 1 !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCROLLBAR — ink on paper
+   ═══════════════════════════════════════════════════════════════════ */
+
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-paper-dim);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink);
+    border: 3px solid var(--color-paper-dim);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PRINT — it's a court document, let people print it
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
