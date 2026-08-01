@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import DOMPurify from 'isomorphic-dompurify';
+import { sanitizeText } from '@/lib/moderation/sanitize';
 import {
   CASE_CATEGORIES,
   VOTE_CHOICES,
@@ -19,22 +19,14 @@ import {
  */
 
 /**
- * Strips all markup. `ALLOWED_TAGS: []` means the output is plain text — the app
- * never renders user HTML, so there is nothing to preserve. This runs after
- * length validation so a tag-stuffed payload cannot pass the length check and
- * then collapse to something too short.
+ * Re-exported so existing call sites keep working.
+ *
+ * The implementation moved to lib/moderation/sanitize.ts when
+ * `isomorphic-dompurify` was removed: it pulled in `jsdom`, whose ESM-only
+ * dependency cannot be `require()`d from Vercel's CommonJS serverless bundle and
+ * returned 500 on every SSR request. The replacement has no DOM dependency.
  */
-export function sanitizeText(input: string): string {
-  return DOMPurify.sanitize(input, {
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: [],
-    KEEP_CONTENT: true,
-  })
-    .replace(/\r\n/g, '\n')
-    // Collapse runs of 3+ newlines; keeps paragraphs, kills whitespace padding.
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
+export { sanitizeText };
 
 /** Rejects strings that are technically long enough but carry no real content. */
 const meaningful = (min: number) =>
