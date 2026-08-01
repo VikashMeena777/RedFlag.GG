@@ -77,13 +77,14 @@ export const serverEnv = {
   get siteUrl() {
     return process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
   },
-  /** Admin allowlist. Empty array means nobody has admin access. */
-  get adminUserIds(): string[] {
-    return (process.env.ADMIN_USER_IDS ?? '')
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean);
-  },
+  /*
+   * There is deliberately no `adminUserIds` here.
+   *
+   * Admin access is `profiles.is_admin`, a database flag read by `getViewer()`.
+   * The former `ADMIN_USER_IDS` env allowlist was removed because granting admin
+   * then required a redeploy, and the two sources could disagree about who is an
+   * admin — which is the worst possible ambiguity for a privileged check.
+   */
   get isProduction() {
     return process.env.NODE_ENV === 'production';
   },
