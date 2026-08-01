@@ -65,17 +65,32 @@ Read `docs/SECURITY.md` before touching auth, votes, verdicts, or billing.
    `cf_subscription_*`. A trigger raises `PRIVILEGED_COLUMN` if anything else
    touches them.
 4. **Redaction runs before the LLM call**, so raw PII never leaves the server.
-5. **Rate limiters fail CLOSED on write paths.** If Upstash is unreachable, the
-   write is rejected. Do not "fail open" for convenience.
+5. **Rate limiters fail CLOSED on client-reachable write paths.** If Upstash is
+   unreachable the write is rejected — an outage is exactly when an abuse wave is
+   cheapest to run.
+   The one deliberate exception is `verdict:global`, which fails **open**: it
+   throttles the gavel's own AI calls, only the cron and the lazy on-read fallback
+   can reach it, and failing closed meant that with Upstash unconfigured *no
+   verdict was ever generated* — the limiter silently disabled the core feature.
+   Read the `failOpen` comment in `lib/rate-limit.ts` before changing either.
 6. **Cashfree tier changes only ever happen in the webhook**, after raw-body HMAC
    verification and idempotency. Read the body with `request.text()`; parsing JSON
    first invalidates the signature.
 7. **New SQL functions need `REVOKE EXECUTE`** from `public`/`anon`/
    `authenticated`. Postgres grants EXECUTE to PUBLIC by default, which exposes
    trigger functions at `/rest/v1/rpc/<name>`.
-8. **TLS headers key off `NEXT_PUBLIC_SITE_URL`, not `NODE_ENV`.** `next start`
-   sets production locally too; WebKit then honours `upgrade-insecure-requests` on
-   localhost and the page loads with no CSS.
+8. **TLS-only headers are added at RUNTIME in `proxy.ts`, not in `next.config.ts`.**
+   `upgrade-insecure-requests` and HSTS are appended only when the request actually
+   arrives over TLS (`x-forwarded-proto`'s *first* hop, or `request.nextUrl.protocol`).
+   Do not move them back into `next.config.ts`: `headers()` runs at **build** time
+   and freezes into `routes-manifest.json`, so no runtime env var can change it.
+   Neither `NODE_ENV` nor `NEXT_PUBLIC_SITE_URL` is a valid signal — `next start`
+   sets production locally, and the site URL is a build-time guess about a request
+   that has not happened yet. Getting this wrong is not cosmetic: WebKit honours
+   `upgrade-insecure-requests` on `http://localhost` (Chromium exempts it), rewriting
+   every asset to `https://localhost:3000` where no TLS listener exists — the page
+   then renders with no CSS and no fonts. Only the first forwarded hop is trusted,
+   so a client cannot spoof `https` by appending one.
 
 ## Layout
 
@@ -95,10 +110,42 @@ supabase/migrations/
 
 ## Design system
 
-"COURT BRUTALISM" — manila paper, heavy ink borders, hard offset shadows, rubber
-stamps. Tokens live in `app/globals.css` under `@theme` (Tailwind v4; there is no
-`tailwind.config.ts`). Fonts: Anton (display), Space Mono (docket labels), Inter
-(body). Do not introduce pastels, glassmorphism, or neon — see `docs/DESIGN.md`.
+**"DIGITAL COURTROOM"** — black void, neon evidence, chrome type. Tokens live in
+`app/globals.css` under `@theme` (Tailwind v4; there is no `tailwind.config.ts`).
+
+| | |
+|---|---|
+| Base | `--color-void` `#07060C`, glass panels at 22px radius, 1px hairlines |
+| Verdicts | magenta `#FF2E7E` / lime `#B4FF39` / cyan `#3DE0FF`, announced via `edge-*` bloom |
+| Fonts | Bricolage Grotesque (display, **mixed case**, w800) · Azeret Mono (HUD) · Plus Jakarta Sans (body) |
+| Primitives | `components/ui/neon.tsx` — `Panel`, `NeonButton`, `Chip`, `SplitBar`, `HeatBar`, `Rule`, `LiveDot`, `VerdictBadge` |
+
+This **replaced** an earlier "Court Brutalism" system (manila paper, black ink,
+Anton, hard offset shadows) because it scored 8/10 visually identical to the
+sibling project `35-SpillBoard` — same token names one hex digit apart, same
+display face, same shadow idiom.
+
+**Do not drift back.** Forbidden: paper/manila backgrounds, black hard-offset
+shadows (`6px 6px 0 0`), Anton, uppercase-by-default headings, square-by-default
+geometry, halftone dot screens, yellow highlighter. `e2e/court.spec.ts` asserts
+the retired tokens stay gone and that no element has an offset shadow, so a
+regression fails CI rather than review. Full reference: `docs/DESIGN.md`.
 
 Satori cannot render emoji or Tailwind, so `lib/og/verdict-card.tsx` is inline
-styles only and uses typographic stamps instead of 🚩/🟢.
+styles only and uses typographic labels instead of 🚩/🟢. It also needs **static**
+font instances (`assets/*.woff` from Fontsource) — all three families ship from
+Google Fonts as variable fonts, which Satori collapses to weight 400.
+
+## Scheduled jobs
+
+Cron is **external** (cron-job.org), not Vercel Cron — the Hobby plan fires only
+once per day and the gavel needs every 5 minutes. `vercel.json` therefore has no
+`crons` block. `/api/cron/gavel` accepts a bearer token, `x-cron-secret`, or
+`?key=`, fails closed without `CRON_SECRET`, and self-limits to a ~20s budget so
+it answers inside a scheduler timeout. Setup and troubleshooting: `docs/CRON.md`.
+
+**Never re-judge a decided case.** `findDueCases()` and `persistVerdict()` both
+filter `ai_verdict IS NULL`. Status alone is insufficient — a case can carry a
+verdict while still `live`, and without that guard a rate-limited sweep overwrote
+genuine rulings with the canned "hung jury" fallback. Capacity failures (429,
+timeout) must not spend `verdict_attempts`; only a validation failure does.
