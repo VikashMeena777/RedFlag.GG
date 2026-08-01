@@ -160,8 +160,9 @@ Transport headers in `docs/SECURITY.md`).
 2. Set `NEXT_PUBLIC_SITE_URL` to the production `https://` URL. This does more
    than build links: `upgrade-insecure-requests` and HSTS are enabled **only**
    when it starts with `https://`.
-3. `vercel.json` already registers the gavel cron at `*/5 * * * *`. Vercel injects
-   the `CRON_SECRET` bearer automatically for its own cron invocations.
+3. Set up the gavel cron with an **external scheduler** — see
+   [`docs/CRON.md`](CRON.md). Vercel Cron is not used: the Hobby plan only fires
+   once per day, and the sweep needs to run every few minutes.
 4. Add the production `/auth/callback` URL to Supabase's redirect allowlist.
 5. Point a Cashfree production webhook at `/api/cashfree/webhook` and flip both
    `CASHFREE_ENV` and `NEXT_PUBLIC_CASHFREE_ENV` to `production`.
@@ -177,3 +178,6 @@ prefixes, so it is safe to point an uptime monitor at.
 Cases still close: `getCase()` runs a lazy gavel on read for a single overdue
 case, so a visitor never sees a frozen case. The cron is throughput, not
 correctness.
+
+Full scheduler setup, auth options, and troubleshooting live in
+[`docs/CRON.md`](CRON.md).

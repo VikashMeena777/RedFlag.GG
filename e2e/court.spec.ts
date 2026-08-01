@@ -260,6 +260,55 @@ test.describe('metadata and crawlers', () => {
     // Cashfree checkout must be permitted, Stripe must be gone.
     expect(headers['content-security-policy']).toContain('cashfree.com');
   });
+
+  /*
+   * TLS headers must follow the *request protocol*, not a build-time env guess.
+   *
+   * This regressed once already and was genuinely hard to diagnose: with
+   * NEXT_PUBLIC_SITE_URL set to the deployed https domain, a local build baked
+   * `upgrade-insecure-requests` into every response. WebKit honours that on
+   * http://localhost (Chromium exempts it), rewriting assets to
+   * https://localhost:3000 where nothing listens — so the whole app rendered
+   * unstyled and five unrelated design tests failed with a transparent body.
+   *
+   * `next.config.ts` cannot fix this because `headers()` is evaluated at build
+   * time; `proxy.ts` decides per request. These assertions pin that behaviour.
+   */
+  test('omits TLS-only headers on a plain HTTP request', async ({ request }) => {
+    const headers = (await request.get('/')).headers();
+
+    // Would make every asset unloadable over http://localhost.
+    expect(headers['content-security-policy']).not.toContain(
+      'upgrade-insecure-requests'
+    );
+    // Would pin localhost:3000 to HTTPS for two years, breaking other projects.
+    expect(headers['strict-transport-security']).toBeUndefined();
+  });
+
+  test('applies TLS-only headers when the request is forwarded as HTTPS', async ({
+    request,
+  }) => {
+    const headers = (
+      await request.get('/', { headers: { 'x-forwarded-proto': 'https' } })
+    ).headers();
+
+    expect(headers['content-security-policy']).toContain(
+      'upgrade-insecure-requests'
+    );
+    expect(headers['strict-transport-security']).toContain('max-age=');
+  });
+
+  test('trusts only the first x-forwarded-proto hop', async ({ request }) => {
+    // Later entries are attacker-appendable, so `http, https` must stay insecure.
+    const spoofed = (
+      await request.get('/', { headers: { 'x-forwarded-proto': 'http, https' } })
+    ).headers();
+
+    expect(spoofed['content-security-policy']).not.toContain(
+      'upgrade-insecure-requests'
+    );
+    expect(spoofed['strict-transport-security']).toBeUndefined();
+  });
 });
 
 test.describe('protected endpoints', () => {

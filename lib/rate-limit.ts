@@ -35,7 +35,16 @@ export type LimitName =
 interface LimitSpec {
   requests: number;
   window: `${number} ${'s' | 'm' | 'h' | 'd'}`;
-  /** Reads may proceed when the limiter is unavailable; writes may not. */
+  /**
+   * What to do when the limiter itself is unavailable.
+   *
+   * `false` (fail closed) for anything an untrusted client can trigger — an
+   * outage is exactly when an abuse wave is cheapest to run.
+   *
+   * `true` (fail open) for limits that are cost/throughput smoothing on trusted
+   * server-side work, where failing closed would take a *feature* offline rather
+   * than merely slow it down.
+   */
   failOpen: boolean;
 }
 
@@ -43,7 +52,17 @@ const LIMITS: Record<LimitName, LimitSpec> = {
   'case:create': { requests: 3, window: '1 h', failOpen: false },
   vote: { requests: 40, window: '1 m', failOpen: false },
   flag: { requests: 10, window: '1 h', failOpen: false },
-  'verdict:global': { requests: 60, window: '1 m', failOpen: false },
+  /*
+   * Fails OPEN, unlike the other write limits.
+   *
+   * This throttles the gavel's own AI calls; it is not abuse prevention, because
+   * only the cron and the lazy on-read fallback ever reach it. Failing closed
+   * meant that with Upstash unconfigured, every case returned `retry_later`
+   * forever and no verdict was ever generated — the limiter silently disabled the
+   * core feature. Provider cost is still bounded by `MAX_VERDICT_ATTEMPTS` and the
+   * cron's own batch and time budget.
+   */
+  'verdict:global': { requests: 60, window: '1 m', failOpen: true },
   'card:download': { requests: 20, window: '1 m', failOpen: true },
   'auth:otp': { requests: 5, window: '15 m', failOpen: false },
   checkout: { requests: 10, window: '1 h', failOpen: false },

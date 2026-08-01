@@ -1,15 +1,10 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/gavel",
-      "schedule": "*/5 * * * *"
-    }
-  ],
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "app/api/cron/gavel/route.ts": {
       "maxDuration": 60
     },
-    "app/api/card/[slug]/route.tsx": {
+    "app/api/card/[caseId]/route.tsx": {
       "maxDuration": 30
     }
   }

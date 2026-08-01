@@ -194,17 +194,51 @@ export interface VerdictOutcome {
   model: string | null;
 }
 
+/** Why generation failed, so the caller can decide whether to spend an attempt. */
+export type VerdictFailure =
+  /**
+   * Every provider was capacity-limited (429) or timed out. The case was never
+   * actually judged, so this must NOT count against MAX_VERDICT_ATTEMPTS —
+   * otherwise three rate-limited sweeps permanently brand a case a hung jury when
+   * no model ever read it.
+   */
+  | 'unavailable'
+  /**
+   * A provider answered but the output could not be validated. That is a genuine
+   * judging failure and does spend an attempt, since retrying forever on a model
+   * that keeps returning malformed JSON is just burning tokens.
+   */
+  | 'rejected';
+
+export interface VerdictAttemptResult {
+  outcome: VerdictOutcome | null;
+  /** Only meaningful when `outcome` is null. */
+  failure?: VerdictFailure;
+}
+
+/** True for errors that mean "try again later", not "this case is unjudgeable". */
+function isCapacityError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  // Groq/OpenAI SDKs expose an HTTP status; 429 and 5xx are both transient.
+  const status = (error as { status?: number }).status;
+  if (status === 429 || (status !== undefined && status >= 500)) return true;
+
+  // Our own withTimeout() rejection, plus common transport failures.
+  return /timed out|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|fetch failed|not configured/i.test(
+    error.message
+  );
+}
+
 /**
  * Attempts a verdict from both providers.
  *
- * Returns `null` when everything failed, so the caller can increment the attempt
- * counter and leave the case open for the next cron pass. Only after
- * MAX_VERDICT_ATTEMPTS does the caller fall back to `hungJury()`.
+ * Returns `outcome: null` when everything failed, along with *why* — the caller
+ * uses `failure` to decide whether to spend one of the case's limited attempts.
  */
 export async function generateVerdict(
   req: VerdictRequest
-): Promise<VerdictOutcome | null> {
-  // A validation failure is a provider failure: try the other one.
+): Promise<VerdictAttemptResult> {
   const providers: Array<{
     name: 'groq' | 'nim';
     model: string;
@@ -214,23 +248,35 @@ export async function generateVerdict(
     { name: 'nim', model: NIM_MODEL, run: () => generateWithNim(req) },
   ];
 
+  // Starts optimistic: downgraded to 'rejected' the moment any provider actually
+  // answers, because that proves the pipeline is reachable and the fault is ours.
+  let failure: VerdictFailure = 'unavailable';
+
   for (const provider of providers) {
     try {
       const raw = await provider.run();
       const parsed = parseVerdict(raw);
       if (parsed) {
-        return { verdict: parsed, source: provider.name, model: provider.model };
+        return {
+          outcome: { verdict: parsed, source: provider.name, model: provider.model },
+        };
       }
+      // A reply we could not parse is a real judging failure.
+      failure = 'rejected';
       console.error(
         `[verdict] ${provider.name} returned unparseable output:`,
         raw.slice(0, 200)
       );
     } catch (error) {
-      console.error(`[verdict] ${provider.name} failed:`, error);
+      if (!isCapacityError(error)) failure = 'rejected';
+      console.error(
+        `[verdict] ${provider.name} failed${isCapacityError(error) ? ' (capacity)' : ''}:`,
+        error instanceof Error ? error.message : error
+      );
     }
   }
 
-  return null;
+  return { outcome: null, failure };
 }
 
 /** The floor: a shareable outcome when generation is hopeless. */

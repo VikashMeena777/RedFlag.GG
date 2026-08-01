@@ -29,6 +29,8 @@ export interface GavelResult {
   publicId: string;
   outcome: 'closed' | 'retry_later' | 'hung_jury' | 'skipped';
   source?: string;
+  /** Why a sweep deferred or gave up. Surfaced in the cron response for debugging. */
+  reason?: 'throttled' | 'providers_unavailable' | 'invalid_verdict';
 }
 
 /** Columns the gavel needs. */
@@ -76,6 +78,16 @@ export async function findDueCases(limit = 10): Promise<DueCase[]> {
     .from('cases')
     .select(DUE_COLUMNS)
     .in('status', ['live', 'judging'])
+    /*
+     * Never re-judge a case that already has a ruling.
+     *
+     * Status alone is not a sufficient guard: a case can legitimately carry a
+     * verdict while still `live` (e.g. seeded data, or a verdict written before a
+     * status update failed). Without this filter the sweep re-ran those cases and
+     * overwrote genuine headlines with the canned "THE JURY IS SPLIT" fallback
+     * once the provider was rate-limited — silent, irreversible data loss.
+     */
+    .is('ai_verdict', null)
     .order('created_at', { ascending: true })
     .limit(limit * 4);
 
@@ -90,10 +102,15 @@ export async function findDueCases(limit = 10): Promise<DueCase[]> {
 /**
  * Generates and persists a verdict for one case.
  *
- * Failure handling is the interesting part: a failed generation increments
- * `verdict_attempts` and leaves the case open for the next sweep. Only after
- * MAX_VERDICT_ATTEMPTS do we write a hung jury, because a case that never closes
- * is worse than an honest "we couldn't rule on this".
+ * Failure handling is the interesting part, and it distinguishes two kinds:
+ *
+ *  - **Capacity** (429, timeout, unconfigured key): no model ever read the case,
+ *    so the attempt counter is NOT spent. Otherwise a provider outage of three
+ *    sweeps would permanently brand every queued case a hung jury.
+ *  - **Rejected** (a reply arrived but failed validation): a genuine judging
+ *    failure, so it spends an attempt. After MAX_VERDICT_ATTEMPTS we write a hung
+ *    jury, because a case that never closes is worse than an honest
+ *    "we couldn't rule on this".
  */
 export async function closeCase(due: DueCase): Promise<GavelResult> {
   const admin = createServiceClient();
@@ -101,7 +118,11 @@ export async function closeCase(due: DueCase): Promise<GavelResult> {
   // Global throttle so a backlog cannot stampede the providers.
   const limit = await checkLimit('verdict:global', 'all');
   if (!limit.ok) {
-    return { publicId: due.public_id, outcome: 'retry_later' };
+    return {
+      publicId: due.public_id,
+      outcome: 'retry_later',
+      reason: 'throttled',
+    };
   }
 
   // Mark as judging so concurrent sweeps skip it and the UI can say so.
@@ -114,9 +135,9 @@ export async function closeCase(due: DueCase): Promise<GavelResult> {
   const split = voteSplit(due.red_weight, due.green_weight);
   const persona = normalisePersona(due.judge_persona);
 
-  const outcome =
+  const attempt =
     due.verdict_attempts >= MAX_VERDICT_ATTEMPTS
-      ? hungJury(split.red)
+      ? { outcome: hungJury(split.red) }
       : await generateVerdict({
           title: due.title ?? 'Untitled case',
           body: due.body,
@@ -127,10 +148,17 @@ export async function closeCase(due: DueCase): Promise<GavelResult> {
           totalVotes: split.total,
         });
 
-  if (!outcome) {
-    const nextAttempt = due.verdict_attempts + 1;
+  if (!attempt.outcome) {
+    const capacityOnly = attempt.failure === 'unavailable';
 
-    // Return to `live` so it is picked up again rather than stuck in `judging`.
+    /*
+     * Spend an attempt only when the failure was ours to fix. Either way the case
+     * returns to `live` so it is retried rather than stranded in `judging`.
+     */
+    const nextAttempt = capacityOnly
+      ? due.verdict_attempts
+      : due.verdict_attempts + 1;
+
     await admin
       .from('cases')
       .update({
@@ -141,27 +169,31 @@ export async function closeCase(due: DueCase): Promise<GavelResult> {
       .eq('id', due.id)
       .eq('status', 'judging');
 
-    // Exhausted: declare a hung jury now rather than leaving it pending forever.
-    if (nextAttempt >= MAX_VERDICT_ATTEMPTS) {
+    // Exhausted, and only ever reachable via real judging failures.
+    if (!capacityOnly && nextAttempt >= MAX_VERDICT_ATTEMPTS) {
       const fallback = hungJury(split.red);
       await persistVerdict(due.id, fallback.verdict, nextAttempt, null);
       return { publicId: due.public_id, outcome: 'hung_jury', source: 'split' };
     }
 
-    return { publicId: due.public_id, outcome: 'retry_later' };
+    return {
+      publicId: due.public_id,
+      outcome: 'retry_later',
+      reason: capacityOnly ? 'providers_unavailable' : 'invalid_verdict',
+    };
   }
 
   const persisted = await persistVerdict(
     due.id,
-    outcome.verdict,
+    attempt.outcome.verdict,
     due.verdict_attempts,
-    outcome.model
+    attempt.outcome.model
   );
 
   return {
     publicId: due.public_id,
     outcome: persisted ? 'closed' : 'skipped',
-    source: outcome.source,
+    source: attempt.outcome.source,
   };
 }
 
@@ -198,6 +230,10 @@ async function persistVerdict(
       updated_at: now,
     })
     .in('status', ['live', 'judging'])
+    // Second half of the no-overwrite guard: even if a concurrent worker wrote a
+    // verdict between our SELECT and this UPDATE, we lose the race harmlessly
+    // instead of clobbering a ruling that may already be public.
+    .is('ai_verdict', null)
     .eq('id', caseId)
     .select('id');
 
@@ -219,9 +255,9 @@ function normalisePersona(value: string | null): JudgePersona {
 /**
  * Lazy safety net for a single overdue case, called on read.
  *
- * Vercel cron can miss a window; without this a visitor could land on a case that
- * looks frozen past its deadline. Deliberately handles one case only, so a page
- * render never turns into a batch job.
+ * An external scheduler can miss a window; without this a visitor could land on a
+ * case that looks frozen past its deadline. Deliberately handles one case only,
+ * so a page render never turns into a batch job.
  */
 export async function closeCaseIfDue(publicId: string): Promise<boolean> {
   const admin = createServiceClient();
@@ -231,6 +267,8 @@ export async function closeCaseIfDue(publicId: string): Promise<boolean> {
     .select(DUE_COLUMNS)
     .eq('public_id', publicId)
     .in('status', ['live', 'judging'])
+    // Mirrors findDueCases: never re-judge a case that already has a ruling.
+    .is('ai_verdict', null)
     .maybeSingle();
 
   if (!data) return false;
