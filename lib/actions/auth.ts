@@ -8,6 +8,7 @@ import { clientIp } from '@/lib/auth/fingerprint';
 import { checkLimit, limitMessage } from '@/lib/rate-limit';
 import { signInSchema, verifyOtpSchema, fieldErrors } from '@/lib/validation';
 import { env } from '@/lib/public-env';
+import { serverEnv } from '@/lib/env';
 
 /**
  * Auth actions.
@@ -25,6 +26,24 @@ export interface ActionResult {
   ok: boolean;
   error?: string;
   fieldErrors?: Record<string, string>;
+}
+
+/**
+ * Whether the Supabase email template is configured to include a code.
+ *
+ * Supabase sends ONE template for both magic links and OTPs: it only contains a
+ * 6-digit code if the template includes `{{ .Token }}`. Out of the box it has
+ * `{{ .ConfirmationURL }}` instead, so users get a link while the UI asks for a
+ * code — which reads as a broken app.
+ *
+ * We cannot inspect the template from here, so this is a declared expectation via
+ * `SUPABASE_EMAIL_SENDS_CODE`. Default `true` (the documented setup), but set it
+ * to `false` and the UI tells people to click the link instead of hunting for a
+ * code that was never sent.
+ */
+export interface VerificationRequestResult extends ActionResult {
+  /** True when the user should expect a typed code, false when a link. */
+  expectsCode?: boolean;
 }
 
 /**
@@ -59,7 +78,7 @@ export async function ensureJuror(): Promise<{ signedIn: boolean }> {
  */
 export async function requestVerification(
   formData: FormData
-): Promise<ActionResult> {
+): Promise<VerificationRequestResult> {
   const parsed = signInSchema.safeParse({ email: formData.get('email') });
   if (!parsed.success) {
     return { ok: false, fieldErrors: fieldErrors(parsed.error) };
@@ -90,18 +109,27 @@ export async function requestVerification(
             : 'Could not send the code. Try again.',
       };
     }
-    return { ok: true };
+    return { ok: true, expectsCode: serverEnv.emailSendsCode };
   }
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true },
+    options: {
+      shouldCreateUser: true,
+      /*
+       * Where a clicked link lands. Required even in the code-first flow, because
+       * the same Supabase template serves both — if the project keeps the default
+       * `{{ .ConfirmationURL }}` template, this is the only thing that makes the
+       * email usable at all.
+       */
+      emailRedirectTo: `${env.siteUrl}/auth/confirm?next=/account`,
+    },
   });
   if (error) {
     console.error('[auth] OTP send failed:', error.message);
     return { ok: false, error: 'Could not send the code. Try again.' };
   }
-  return { ok: true };
+  return { ok: true, expectsCode: serverEnv.emailSendsCode };
 }
 
 /**
@@ -194,9 +222,9 @@ export async function getViewerSnapshot() {
   return {
     isSignedIn: viewer.isSignedIn,
     isVerified: viewer.isVerified,
-    isPlus: viewer.isPlus,
+    isPro: viewer.isPro,
     canFile: viewer.canFile,
-    canFlag: viewer.canFlag,
+    canReport: viewer.canReport,
     fileBlockedReason: viewer.fileBlockedReason,
   };
 }

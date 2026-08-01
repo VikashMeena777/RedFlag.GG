@@ -2,33 +2,44 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { ShieldAlert } from 'lucide-react';
-import { flagCase } from '@/lib/actions/flags';
-import { BrutButton } from '@/components/ui/brut';
+import { ShieldAlert, Check } from 'lucide-react';
+import { reportCase } from '@/lib/actions/reports';
+import {
+  REPORT_REASONS,
+  REPORT_REASON_LABELS,
+  type ReportReason,
+} from '@/lib/moderation/report-reasons';
+import { NeonButton } from '@/components/ui/neon';
+import { cn } from '@/lib/utils';
 
 /**
  * Report control.
  *
- * Verified-only by design: five distinct flags auto-hide a case, so an anonymous
- * mob able to mass-flag would be a takedown weapon. Requiring a real account
- * makes brigading traceable and rate-limitable.
+ * Verified-only by design: five distinct pending reports auto-hide a case, so an
+ * anonymous mob able to mass-report would be a takedown weapon. Requiring a real
+ * account makes brigading traceable and rate-limitable.
+ *
+ * Reasons are structured rather than free text so the moderation queue can triage
+ * without reading prose.
  */
 export function ReportButton({
-  slug,
-  canFlag,
+  caseId,
+  canReport,
 }: {
-  slug: string;
-  canFlag: boolean;
+  caseId: string;
+  canReport: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState<ReportReason>('identifies_someone');
+  const [details, setDetails] = useState('');
   const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   if (done) {
     return (
-      <p className="font-docket text-[10px] font-bold tracking-[0.14em] text-ink-soft">
-        REPORT RECEIVED — THE CLERK WILL REVIEW IT
+      <p className="flex items-center gap-1.5 font-hud text-[10px] font-medium uppercase tracking-[0.16em] text-flag-green">
+        <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
+        Report received — the clerk will review it
       </p>
     );
   }
@@ -38,15 +49,15 @@ export function ReportButton({
       <button
         type="button"
         onClick={() => {
-          if (!canFlag) {
+          if (!canReport) {
             toast.error('Reporting requires a verified account.');
             return;
           }
           setOpen(true);
         }}
-        className="inline-flex items-center gap-1.5 font-docket text-[10px] font-bold uppercase tracking-[0.14em] text-ink-faint transition-colors hover:text-flag-red"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-chalk-faint transition-colors hover:text-flag-red"
       >
-        <ShieldAlert className="size-3.5" strokeWidth={2.75} aria-hidden />
+        <ShieldAlert className="size-3.5" strokeWidth={2.25} aria-hidden />
         Report this case
       </button>
     );
@@ -54,7 +65,7 @@ export function ReportButton({
 
   function submit() {
     startTransition(async () => {
-      const result = await flagCase(slug, reason);
+      const result = await reportCase(caseId, reason, details);
       if (!result.ok) {
         toast.error(result.error ?? 'Could not submit the report.');
         return;
@@ -66,34 +77,61 @@ export function ReportButton({
   }
 
   return (
-    <div className="brut w-full max-w-sm bg-paper-dim p-4">
-      <label
-        htmlFor="report-reason"
-        className="docket-label mb-2 block text-ink"
-      >
-        Why should the clerk look at this?
+    <div className="panel w-full max-w-sm p-5">
+      <fieldset>
+        <legend className="hud mb-3">Why should the clerk look at this?</legend>
+        <div className="flex flex-col gap-2">
+          {REPORT_REASONS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setReason(r)}
+              aria-pressed={reason === r}
+              className={cn(
+                'flex items-center gap-2.5 rounded-[var(--radius-tile)] border px-3 py-2.5 text-left text-xs font-medium transition-all',
+                reason === r
+                  ? 'border-flag-red/60 bg-flag-red-deep text-flag-red'
+                  : 'border-line bg-surface text-chalk-dim hover:border-line-bright hover:text-chalk'
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'flex size-4 shrink-0 items-center justify-center rounded-full border',
+                  reason === r
+                    ? 'border-flag-red bg-flag-red'
+                    : 'border-line-bright'
+                )}
+              >
+                {reason === r && (
+                  <span className="size-1.5 rounded-full bg-[#1a0009]" />
+                )}
+              </span>
+              {REPORT_REASON_LABELS[r]}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <label htmlFor="report-details" className="hud mt-5 block">
+        Anything else? (optional)
       </label>
       <textarea
-        id="report-reason"
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        rows={3}
-        maxLength={300}
-        placeholder="Names a real person, harassment, underage, spam…"
-        className="brut-thin w-full resize-none bg-paper-bright p-2.5 text-sm text-ink placeholder:text-ink-faint"
+        id="report-details"
+        value={details}
+        onChange={(e) => setDetails(e.target.value)}
+        rows={2}
+        maxLength={500}
+        className="panel-sunk mt-2 w-full resize-none p-3 text-sm text-chalk outline-none transition-colors focus:border-judge"
       />
-      <div className="mt-3 flex gap-2">
-        <BrutButton
-          size="sm"
-          variant="red"
-          onClick={submit}
-          disabled={isPending || reason.trim().length < 4}
-        >
+
+      <div className="mt-4 flex gap-2.5">
+        <NeonButton size="sm" variant="red" onClick={submit} disabled={isPending}>
           {isPending ? 'Sending…' : 'Submit report'}
-        </BrutButton>
-        <BrutButton size="sm" variant="ghost" onClick={() => setOpen(false)}>
+        </NeonButton>
+        <NeonButton size="sm" variant="ghost" onClick={() => setOpen(false)}>
           Cancel
-        </BrutButton>
+        </NeonButton>
       </div>
     </div>
   );

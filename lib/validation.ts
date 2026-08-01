@@ -3,6 +3,8 @@ import DOMPurify from 'isomorphic-dompurify';
 import {
   CASE_CATEGORIES,
   VOTE_CHOICES,
+  JUDGE_PERSONAS,
+  DEFAULT_PERSONA,
   TITLE_MIN,
   TITLE_MAX,
   BODY_MIN,
@@ -60,6 +62,8 @@ export const fileCaseSchema = z.object({
     .min(BODY_MIN, `Give the jury at least ${BODY_MIN} characters to work with.`)
     .max(BODY_MAX, `Keep it under ${BODY_MAX} characters.`)
     .pipe(meaningful(BODY_MIN)),
+  /** Which judge hears the case. Stored on the row as `judge_persona`. */
+  persona: z.enum(JUDGE_PERSONAS).default(DEFAULT_PERSONA),
   /** Confirms the author accepted the no-doxxing rules. */
   acceptedRules: z.literal(true, {
     message: 'You must accept the court rules.',
@@ -68,19 +72,38 @@ export const fileCaseSchema = z.object({
 
 export type FileCaseInput = z.infer<typeof fileCaseSchema>;
 
+/**
+ * `public_id` is the URL identifier, e.g. "CASE-7421". Pattern-matched rather
+ * than length-checked so a malformed id fails before it reaches the database.
+ */
+const publicIdSchema = z
+  .string()
+  .trim()
+  .regex(/^CASE-\d{1,12}$/i, 'Invalid case number.');
+
 export const voteSchema = z.object({
-  slug: z.string().trim().min(1).max(24),
+  publicId: publicIdSchema,
   choice: z.enum(VOTE_CHOICES),
 });
 
-export const flagSchema = z.object({
-  slug: z.string().trim().min(1).max(24),
-  reason: z
+export const reportSchema = z.object({
+  publicId: publicIdSchema,
+  reason: z.enum([
+    'identifies_someone',
+    'harassment',
+    'underage',
+    'spam',
+    'other',
+  ]),
+  details: z
     .string()
     .trim()
-    .min(4, 'Tell us why.')
-    .max(300, 'Keep it under 300 characters.'),
+    .max(500, 'Keep it under 500 characters.')
+    .default(''),
 });
+
+/** Derived from the schema so the two can never drift apart. */
+export type ReportReason = z.infer<typeof reportSchema>['reason'];
 
 export const emailSchema = z
   .string()

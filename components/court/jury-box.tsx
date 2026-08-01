@@ -2,25 +2,24 @@
 
 import { useState, useTransition, useOptimistic } from 'react';
 import { toast } from 'sonner';
-import { Flag, Leaf } from 'lucide-react';
+import { Flag, Sparkles } from 'lucide-react';
 import { castVote } from '@/lib/actions/votes';
-import { SplitBar } from '@/components/ui/brut';
+import { SplitBar } from '@/components/ui/neon';
 import { cn, voteSplit, compactCount } from '@/lib/utils';
 import type { VoteChoice } from '@/lib/types';
 
 /**
- * The jury box: two oversized stamp buttons.
+ * The jury box: two oversized neon choices.
  *
  * Optimistic by design — a vote must feel instant or the loop dies. The server
  * returns authoritative weighted tallies and we reconcile; on failure we revert
  * and say why (already voted from this device, case closed, own case).
  *
- * Note the displayed percentages come from the *weighted* tally, which is what
- * the verdict and ranking use. Showing raw counts under a weighted bar would
- * misrepresent the split.
+ * Displayed percentages come from the *weighted* tally, which is what the verdict
+ * and ranking use. Showing raw counts under a weighted bar would misrepresent it.
  */
 export function JuryBox({
-  slug,
+  caseId,
   initialRedWeight,
   initialGreenWeight,
   initialBallots,
@@ -28,7 +27,8 @@ export function JuryBox({
   disabled,
   disabledReason,
 }: {
-  slug: string;
+  /** `public_id`, e.g. "CASE-7421". */
+  caseId: string;
   initialRedWeight: number;
   initialGreenWeight: number;
   initialBallots: number;
@@ -39,8 +39,7 @@ export function JuryBox({
   /*
    * Split is stored as percentages, not weights. The initial render derives them
    * from the weights passed in; after a vote the server hands back authoritative
-   * percentages, which are stored directly. Keeping one representation avoids
-   * converting an already-converted value.
+   * percentages, stored directly. One representation avoids double-converting.
    */
   const [split, setSplit] = useState(() =>
     voteSplit(initialRedWeight, initialGreenWeight)
@@ -61,7 +60,7 @@ export function JuryBox({
     startTransition(async () => {
       applyOptimistic(choice);
 
-      const result = await castVote(slug, choice);
+      const result = await castVote(caseId, choice);
 
       if (!result.ok) {
         toast.error(result.error ?? 'Could not record your vote.');
@@ -79,9 +78,7 @@ export function JuryBox({
         });
         setBallots(result.tally.total);
       }
-      toast.success(
-        choice === 'red' ? 'Logged: RED FLAG' : 'Logged: GREEN FLAG'
-      );
+      toast.success(choice === 'red' ? 'Logged: red flag' : 'Logged: green flag');
     });
   }
 
@@ -89,69 +86,105 @@ export function JuryBox({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="docket-label text-center">
-        {disabled ? disabledReason : 'The jury is you. Cast your vote.'}
+      <p className="text-center text-sm font-medium text-chalk-dim">
+        {disabled ? disabledReason : 'You are the jury. Call it.'}
       </p>
 
       <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
+        <VoteChoiceButton
+          tone="red"
+          label="Red flag"
+          sublabel={shown === 'red' ? 'your call' : 'run'}
+          icon={<Flag className="size-6" strokeWidth={2.25} aria-hidden />}
+          selected={shown === 'red'}
+          disabled={disabled || isPending}
           onClick={() => vote('red')}
+        />
+        <VoteChoiceButton
+          tone="green"
+          label="Green flag"
+          sublabel={shown === 'green' ? 'your call' : 'they good'}
+          icon={<Sparkles className="size-6" strokeWidth={2.25} aria-hidden />}
+          selected={shown === 'green'}
           disabled={disabled || isPending}
-          aria-pressed={shown === 'red'}
-          className={cn(
-            'brut brut-press flex flex-col items-center gap-2 px-3 py-6 transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-            shown === 'red'
-              ? 'brut-shadow-red bg-flag-red text-paper-bright'
-              : 'brut-shadow bg-flag-red-lo text-flag-red hover:bg-flag-red hover:text-paper-bright'
-          )}
-        >
-          <Flag className="size-7" strokeWidth={2.75} aria-hidden />
-          <span className="font-display text-xl tracking-tight">RED FLAG</span>
-          <span className="font-docket text-[10px] font-bold tracking-[0.14em]">
-            {shown === 'red' ? 'YOUR VOTE' : 'RUN'}
-          </span>
-        </button>
-
-        <button
-          type="button"
           onClick={() => vote('green')}
-          disabled={disabled || isPending}
-          aria-pressed={shown === 'green'}
-          className={cn(
-            'brut brut-press flex flex-col items-center gap-2 px-3 py-6 transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-            shown === 'green'
-              ? 'brut-shadow-green bg-flag-green text-paper-bright'
-              : 'brut-shadow bg-flag-green-lo text-flag-green hover:bg-flag-green hover:text-paper-bright'
-          )}
-        >
-          <Leaf className="size-7" strokeWidth={2.75} aria-hidden />
-          <span className="font-display text-xl tracking-tight">GREEN FLAG</span>
-          <span className="font-docket text-[10px] font-bold tracking-[0.14em]">
-            {shown === 'green' ? 'YOUR VOTE' : 'THEY GOOD'}
-          </span>
-        </button>
+        />
       </div>
 
-      {/* Live split — only revealed once a vote exists, so the first juror
-          isn't anchored by a meaningless 50/50. */}
+      {/* Live split — revealed only once a vote exists, so the first juror is
+          not anchored by a meaningless 50/50. */}
       {split.hasVotes && (
         <div>
-          <div className="mb-1.5 flex items-center justify-between font-docket text-[10px] font-bold tracking-[0.12em]">
-            <span className="text-flag-red">{split.red}% RED</span>
-            <span className="text-ink-soft">
-              {compactCount(ballots)} JURORS
+          <div className="mb-2 flex items-center justify-between font-hud text-[10px] font-medium uppercase tracking-[0.16em]">
+            <span className="text-flag-red">{split.red}% red</span>
+            <span className="text-chalk-faint">
+              {compactCount(ballots)} jurors
             </span>
-            <span className="text-flag-green">{split.green}% GREEN</span>
+            <span className="text-flag-green">{split.green}% green</span>
           </div>
           <SplitBar
             redPct={split.red}
             greenPct={split.green}
             hasVotes
             animate
+            className="h-3"
           />
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * One side of the jury box.
+ *
+ * Unselected is a glass tile with a coloured icon; selected floods with the neon
+ * and drops a matching bloom. The difference has to be obvious at a glance,
+ * because "did my vote register?" is the one question this UI must never leave open.
+ */
+function VoteChoiceButton({
+  tone,
+  label,
+  sublabel,
+  icon,
+  selected,
+  disabled,
+  onClick,
+}: {
+  tone: 'red' | 'green';
+  label: string;
+  sublabel: string;
+  icon: React.ReactNode;
+  selected: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={cn(
+        'group flex flex-col items-center gap-2 rounded-[var(--radius-card)] px-3 py-6',
+        'border transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-45',
+        'active:scale-[0.97]',
+        selected
+          ? tone === 'red'
+            ? 'border-flag-red/70 bg-flag-red text-[#1a0009] shadow-[0_8px_32px_-8px_var(--color-flag-red)]'
+            : 'border-flag-green/70 bg-flag-green text-[#101a00] shadow-[0_8px_32px_-8px_var(--color-flag-green)]'
+          : tone === 'red'
+            ? 'border-line bg-flag-red-deep/40 text-flag-red hover:border-flag-red/60 hover:bg-flag-red-deep'
+            : 'border-line bg-flag-green-deep/40 text-flag-green hover:border-flag-green/60 hover:bg-flag-green-deep'
+      )}
+    >
+      {icon}
+      <span className="font-display text-lg font-bold tracking-[-0.03em]">
+        {label}
+      </span>
+      <span className="font-hud text-[9px] font-medium uppercase tracking-[0.18em] opacity-80">
+        {sublabel}
+      </span>
+    </button>
   );
 }

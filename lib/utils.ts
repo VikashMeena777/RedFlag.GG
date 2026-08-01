@@ -7,11 +7,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Renders a case's sequential number as a docket reference, e.g. 123 → "RF-000123".
- * Zero-padded to six digits so the mono column never reflows in the feed.
+ * Formats a case reference for display.
+ *
+ * `public_id` already arrives as "CASE-7421" from the database, so this only
+ * normalises casing and guards against a malformed value rather than inventing a
+ * format. Kept as a function so the presentation can change in one place.
  */
-export function formatCaseNo(caseNo: number): string {
-  return `RF-${String(caseNo).padStart(6, '0')}`;
+export function formatCaseNo(publicId: string): string {
+  return publicId.trim().toUpperCase();
 }
 
 /**

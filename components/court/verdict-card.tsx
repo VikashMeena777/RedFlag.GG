@@ -1,15 +1,18 @@
-import { Gavel, Flame } from 'lucide-react';
-import { Stamp, SplitBar, DocketRule } from '@/components/ui/brut';
-import { formatCaseNo, voteSplit, compactCount } from '@/lib/utils';
-import { CATEGORY_LABELS, type CaseView } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { Gavel, Flame, Users, Scale } from 'lucide-react';
+import { VerdictBadge, SplitBar, HeatBar, Rule, Chip } from '@/components/ui/neon';
+import { formatCaseNo, voteSplit, compactCount, cn } from '@/lib/utils';
+import {
+  CATEGORY_LABELS,
+  VERDICT_LABELS,
+  PERSONA_LABELS,
+  type CaseView,
+} from '@/lib/types';
 
 /**
  * The verdict card: the shareable unit.
  *
  * Mirrors lib/og/verdict-card.tsx so the on-screen version and the exported PNG
- * read as the same object. Fixed 4:5-ish proportions on mobile, because that is
- * what a story crop expects.
+ * read as the same object.
  *
  * The share controls deliberately live outside this component — nothing in here
  * should appear in a screenshot except the ruling itself.
@@ -21,103 +24,124 @@ export function VerdictCard({ caseData }: { caseData: CaseView }) {
   const split = voteSplit(caseData.redWeight, caseData.greenWeight);
   const ballots = caseData.redVotes + caseData.greenVotes;
 
+  // `split` is a real verdict in this schema, not a failure mode, so it gets the
+  // judge's own cyan rather than error styling.
   const tone =
-    verdict.verdict === 'RED_FLAG'
+    verdict.verdict === 'red'
       ? 'red'
-      : verdict.verdict === 'GREEN_FLAG'
+      : verdict.verdict === 'green'
         ? 'green'
         : 'judge';
 
   return (
     <article
       className={cn(
-        'brut brut-shadow-lg halftone relative bg-paper-bright p-5 sm:p-7',
-        tone === 'red' && 'shadow-flag-red',
-        tone === 'green' && 'shadow-flag-green'
+        'panel relative overflow-hidden p-6 sm:p-8',
+        tone === 'red' && 'edge-red',
+        tone === 'green' && 'edge-green',
+        tone === 'judge' && 'edge-judge'
       )}
     >
+      {/* Verdict-coloured bloom behind the ruling. */}
+      <div
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute -top-24 left-1/2 h-56 w-[130%] -translate-x-1/2 rounded-full opacity-25 blur-3xl',
+          tone === 'red' && 'bg-flag-red',
+          tone === 'green' && 'bg-flag-green',
+          tone === 'judge' && 'bg-judge'
+        )}
+      />
+
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <span className="font-docket text-[11px] font-bold tracking-[0.14em] text-ink">
-          {formatCaseNo(caseData.caseNo)}
-        </span>
-        <span className="font-docket text-[11px] font-bold tracking-[0.14em] text-ink-soft">
-          {CATEGORY_LABELS[caseData.category].toUpperCase()}
+      <div className="relative flex items-start justify-between gap-3">
+        <span className="hud">{formatCaseNo(caseData.publicId)}</span>
+        <span className="hud">
+          {CATEGORY_LABELS[caseData.category]}
         </span>
       </div>
 
-      <div className="mt-3 h-[3px] bg-ink" />
-
       {/* The story under review */}
-      <h1 className="mt-4 font-sans text-base font-semibold leading-snug text-ink-soft sm:text-lg">
+      <h1 className="relative mt-5 text-base font-semibold leading-snug text-chalk-dim sm:text-lg">
         {caseData.title}
       </h1>
 
       {/* The ruling */}
-      <p className="mt-6 font-docket text-[11px] font-bold tracking-[0.16em] text-ink-soft">
-        THE COURT FINDS
+      <p className="relative mt-7 font-hud text-[10px] font-medium uppercase tracking-[0.22em] text-chalk-faint">
+        The court finds
       </p>
 
-      <h2 className="mt-2 font-display text-[clamp(2.25rem,11vw,4rem)] leading-[0.92] tracking-tight text-ink">
+      <h2
+        className={cn(
+          'relative mt-2 animate-verdict-in font-display text-[clamp(2rem,9vw,3.4rem)] font-extrabold leading-[0.95] tracking-[-0.045em]',
+          tone === 'red' && 'text-flag-red glow-red',
+          tone === 'green' && 'text-flag-green glow-green',
+          tone === 'judge' && 'text-judge glow-judge'
+        )}
+      >
         {verdict.headline}
       </h2>
 
-      <div className="mt-4">
-        <Stamp tone={tone} className="animate-stamp-in text-sm">
-          <Gavel className="size-4" strokeWidth={2.75} aria-hidden />
-          {verdict.verdict.replace('_', ' ')}
-        </Stamp>
+      <div className="relative mt-4">
+        <VerdictBadge tone={tone} animate>
+          <Gavel className="size-3.5" strokeWidth={2.5} aria-hidden />
+          {VERDICT_LABELS[verdict.verdict]}
+        </VerdictBadge>
       </div>
 
       {/* The roast — the quotable part */}
-      <blockquote className="mt-6 border-l-[6px] border-judge pl-4 text-[15px] leading-relaxed text-ink sm:text-base">
+      <blockquote className="panel-sunk relative mt-6 p-4 text-[15px] leading-relaxed text-chalk sm:text-base">
         {verdict.roast}
       </blockquote>
 
-      <DocketRule className="my-6" />
+      <Rule className="relative my-7" />
 
       {/* Jury split */}
-      <div>
-        <div className="mb-1.5 flex items-center justify-between font-docket text-[10px] font-bold tracking-[0.12em]">
+      <div className="relative">
+        <div className="mb-2 flex items-center justify-between font-hud text-[10px] font-medium uppercase tracking-[0.16em]">
           <span className="text-flag-red">
-            {split.hasVotes ? `${split.red}% RED` : 'NO JURY'}
+            {split.hasVotes ? `${split.red}% red` : 'no jury'}
           </span>
-          <span className="text-ink-soft">{compactCount(ballots)} JURORS</span>
+          <span className="flex items-center gap-1.5 text-chalk-faint">
+            <Users className="size-3" strokeWidth={2.5} aria-hidden />
+            {compactCount(ballots)} jurors
+          </span>
           <span className="text-flag-green">
-            {split.hasVotes ? `${split.green}% GREEN` : '—'}
+            {split.hasVotes ? `${split.green}% green` : '—'}
           </span>
         </div>
         <SplitBar
           redPct={split.red}
           greenPct={split.green}
           hasVotes={split.hasVotes}
+          className="h-3"
         />
       </div>
 
-      {/* Footer: sentence + toxicity */}
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="font-docket text-[10px] font-bold tracking-[0.16em] text-ink-soft">
-            SENTENCE
+      {/* Footer: toxicity + record + which judge heard it */}
+      <div className="relative mt-7 flex flex-wrap items-end justify-between gap-5">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 font-hud text-[10px] font-medium uppercase tracking-[0.2em] text-chalk-faint">
+            <Flame className="size-3" strokeWidth={2.5} aria-hidden />
+            Toxicity {verdict.toxicity}/100
           </p>
-          <p className="mt-0.5 font-display text-xl tracking-tight text-ink">
-            {verdict.sentence}
-          </p>
+          <HeatBar value={verdict.toxicity} className="mt-2 max-w-[180px]" />
         </div>
 
-        <div className="text-right">
-          <p className="flex items-center justify-end gap-1 font-docket text-[10px] font-bold tracking-[0.16em] text-ink-soft">
-            <Flame className="size-3" strokeWidth={2.75} aria-hidden />
-            TOXICITY
-          </p>
-          <p className="mt-0.5 font-display text-xl tracking-tight text-ink">
-            {verdict.toxicity}/100
-          </p>
-        </div>
+        <Chip tone="judge">
+          <Scale className="size-3" strokeWidth={2.5} aria-hidden />
+          {PERSONA_LABELS[caseData.persona]}
+        </Chip>
       </div>
 
-      <p className="mt-5 text-center font-display text-lg tracking-tight text-ink-faint">
-        REDFLAG.GG
+      {verdict.summary && (
+        <p className="relative mt-5 text-sm font-medium text-chalk-dim">
+          {verdict.summary}
+        </p>
+      )}
+
+      <p className="chrome relative mt-6 text-center font-display text-base font-bold tracking-[-0.04em]">
+        RedFlag.gg
       </p>
     </article>
   );

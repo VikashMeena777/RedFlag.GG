@@ -1,7 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { serverEnv } from '@/lib/env';
 import {
   MIN_ACCOUNT_AGE_MINUTES,
   MAX_STRIKES,
@@ -12,18 +11,19 @@ import {
 /**
  * The authenticated caller, as resolved on the server.
  *
- * Nothing here is ever taken from the client. `tier` comes from the profiles
- * table, not from a cookie or a form field, and every permission flag is
- * derived from it. Client components receive only the booleans they need to
- * render — never the raw tier as an authority.
+ * Nothing here is ever taken from the client. The tier is *derived* rather than
+ * stored: `profiles` carries `is_pro` / `is_admin` / `is_banned`, and whether the
+ * session is anonymous comes from `auth.users.is_anonymous`. Client components
+ * receive only the booleans they need to render — never a tier they could forge.
  */
 export interface Viewer {
   userId: string | null;
   tier: Tier;
+  handle: string | null;
   isSignedIn: boolean;
   isAnonymous: boolean;
   isVerified: boolean;
-  isPlus: boolean;
+  isPro: boolean;
   isAdmin: boolean;
   /** Jury weight this viewer's ballot carries. */
   voteWeight: number;
@@ -31,8 +31,14 @@ export interface Viewer {
   canFile: boolean;
   /** Reason filing is blocked, for a useful UI message. */
   fileBlockedReason: FileBlockedReason | null;
-  canFlag: boolean;
+  canReport: boolean;
   strikes: number;
+  karma: number;
+  /**
+   * Shadow-banned users see their own content as normal but nobody else does.
+   * Surfaced so writes can be accepted-then-hidden rather than rejected.
+   */
+  isShadowBanned: boolean;
 }
 
 export type FileBlockedReason =
@@ -45,16 +51,19 @@ export type FileBlockedReason =
 const ANONYMOUS_VIEWER: Viewer = {
   userId: null,
   tier: 'anonymous',
+  handle: null,
   isSignedIn: false,
   isAnonymous: true,
   isVerified: false,
-  isPlus: false,
+  isPro: false,
   isAdmin: false,
   voteWeight: TIER_VOTE_WEIGHT.anonymous,
   canFile: false,
   fileBlockedReason: 'not_signed_in',
-  canFlag: false,
+  canReport: false,
   strikes: 0,
+  karma: 0,
+  isShadowBanned: false,
 };
 
 /**
@@ -71,55 +80,72 @@ export async function getViewer(): Promise<Viewer> {
 
   if (!user) return ANONYMOUS_VIEWER;
 
-  // Read the profile with the service client: `profiles` is only self-readable
-  // under RLS, and this avoids a policy round-trip on every page render.
+  // Read the profile with the service client: `profiles` is self-readable only
+  // under RLS, and this avoids a policy round-trip on every render.
   const admin = createServiceClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('tier, strikes, filing_banned, plus_until, created_at')
+    .select(
+      'handle, karma, is_admin, is_pro, pro_expires_at, is_banned, is_shadow_banned, strikes, created_at'
+    )
     .eq('id', user.id)
     .maybeSingle();
 
   if (!profile) {
-    // Auth user exists but the profile trigger hasn't landed yet. Treat as
-    // anonymous — deny by default rather than assuming privileges.
+    // Auth user exists but the provisioning trigger hasn't landed yet. Deny by
+    // default rather than assuming privileges.
     return { ...ANONYMOUS_VIEWER, userId: user.id, isSignedIn: true };
   }
 
-  // Expired RedFlag+ silently degrades to verified; mirrors effective_tier().
-  const plusExpired =
-    profile.tier === 'plus' &&
-    profile.plus_until !== null &&
-    new Date(profile.plus_until) < new Date();
-  const tier: Tier = plusExpired ? 'verified' : profile.tier;
+  /*
+   * Anonymity comes from the auth record, not the profile. Supabase sets
+   * `is_anonymous` on sessions created by `signInAnonymously()`, and clears it
+   * once an email or OAuth identity is linked and confirmed — which is exactly
+   * the upgrade path that lets a drive-by voter keep their history.
+   */
+  const isAnonymous = user.is_anonymous === true;
 
-  const isVerified = tier === 'verified' || tier === 'plus';
+  // Expired Pro silently degrades to verified.
+  const proExpired =
+    profile.is_pro &&
+    profile.pro_expires_at !== null &&
+    new Date(profile.pro_expires_at) < new Date();
+  const isPro = profile.is_pro && !proExpired;
+
+  const tier: Tier = isAnonymous ? 'anonymous' : isPro ? 'pro' : 'verified';
+  const isVerified = !isAnonymous;
+
   const accountAgeMs = Date.now() - new Date(profile.created_at).getTime();
   const isOldEnough = accountAgeMs >= MIN_ACCOUNT_AGE_MINUTES * 60_000;
 
   let fileBlockedReason: FileBlockedReason | null = null;
   if (!isVerified) fileBlockedReason = 'not_verified';
-  else if (profile.filing_banned) fileBlockedReason = 'banned';
+  else if (profile.is_banned) fileBlockedReason = 'banned';
   else if (profile.strikes >= MAX_STRIKES) fileBlockedReason = 'too_many_strikes';
   else if (!isOldEnough) fileBlockedReason = 'account_too_new';
 
   return {
     userId: user.id,
     tier,
+    handle: profile.handle,
     isSignedIn: true,
-    isAnonymous: tier === 'anonymous',
+    isAnonymous,
     isVerified,
-    isPlus: tier === 'plus',
-    isAdmin: serverEnv.adminUserIds.includes(user.id),
+    isPro,
+    // Admin comes from the database flag, not an env allowlist, so access can be
+    // granted without a redeploy.
+    isAdmin: profile.is_admin === true,
     voteWeight: TIER_VOTE_WEIGHT[tier],
     canFile: fileBlockedReason === null,
     fileBlockedReason,
-    canFlag: isVerified,
+    canReport: isVerified && !profile.is_banned,
     strikes: profile.strikes,
+    karma: profile.karma,
+    isShadowBanned: profile.is_shadow_banned === true,
   };
 }
 
-/** Throws unless the viewer is an allowlisted admin. Use in admin routes. */
+/** Throws unless the viewer is an admin. Use in admin routes and actions. */
 export async function requireAdmin(): Promise<Viewer> {
   const viewer = await getViewer();
   if (!viewer.isAdmin) {

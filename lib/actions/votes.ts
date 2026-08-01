@@ -17,13 +17,13 @@ import type { VoteChoice } from '@/lib/types';
  * This is the one write path anonymous users may take, so it carries the most
  * anti-fraud weight:
  *
- *  - `(case_id, voter_id)` unique constraint → one ballot per identity.
- *  - `(case_id, voter_fp)` partial unique index on anonymous rows → clearing
- *    site data to mint a fresh identity does not buy a second vote from the same
+ *  - `votes_case_user_uniq` → one ballot per identity.
+ *  - `votes_anon_fingerprint_uniq` (partial, anonymous rows only) → clearing site
+ *    data to mint a fresh identity does not buy a second vote from the same
  *    device/IP. Verified users are exempt, because a shared household NAT is
  *    legitimate.
  *  - Tier-weighted tallies → an anonymous swarm cannot out-shout real accounts.
- *  - Self-voting and closed-case voting rejected by DB trigger.
+ *  - Self-voting and closed-case voting rejected by the `votes_guard` trigger.
  *
  * The weight is read from the server-resolved viewer, never from the request.
  */
@@ -43,10 +43,10 @@ export interface VoteResult {
 }
 
 export async function castVote(
-  slug: string,
+  publicId: string,
   choice: VoteChoice
 ): Promise<VoteResult> {
-  const parsed = voteSchema.safeParse({ slug, choice });
+  const parsed = voteSchema.safeParse({ publicId, choice });
   if (!parsed.success) {
     return { ok: false, error: 'Invalid ballot.' };
   }
@@ -67,11 +67,11 @@ export async function castVote(
   const { data: caseRow } = await supabase
     .from('cases')
     .select('id, status, author_id')
-    .eq('slug', parsed.data.slug)
+    .eq('public_id', parsed.data.publicId)
     .maybeSingle();
 
   if (!caseRow) return { ok: false, error: 'Case not found.' };
-  if (caseRow.status !== 'in_session') {
+  if (caseRow.status !== 'live' && caseRow.status !== 'judging') {
     return { ok: false, error: 'The gavel already dropped on this one.' };
   }
   if (caseRow.author_id === viewer.userId) {
@@ -79,7 +79,7 @@ export async function castVote(
   }
 
   const isAnonymousVote = !viewer.isVerified;
-  const voterFp = isAnonymousVote
+  const deviceFingerprint = isAnonymousVote
     ? fingerprint(ip, headerList.get('user-agent') ?? '')
     : null;
 
@@ -91,45 +91,44 @@ export async function castVote(
    * opaque constraint violation. Uses the service client because RLS would not
    * expose another identity's ballot.
    */
-  if (isAnonymousVote && voterFp) {
+  if (isAnonymousVote && deviceFingerprint) {
     const admin = createServiceClient();
-    const { data: existingFp } = await admin
+    const { data: existing } = await admin
       .from('votes')
-      .select('voter_id, choice')
+      .select('user_id')
       .eq('case_id', caseRow.id)
-      .eq('voter_fp', voterFp)
+      .eq('device_fingerprint', deviceFingerprint)
       .eq('is_anonymous_vote', true)
       .maybeSingle();
 
-    if (existingFp && existingFp.voter_id !== viewer.userId) {
-      return {
-        ok: false,
-        error: 'This device already voted on this case.',
-      };
+    if (existing && existing.user_id !== viewer.userId) {
+      return { ok: false, error: 'This device already voted on this case.' };
     }
   }
 
   const { error } = await supabase.from('votes').upsert(
     {
       case_id: caseRow.id,
-      voter_id: viewer.userId,
-      choice: parsed.data.choice,
+      user_id: viewer.userId,
+      vote: parsed.data.choice,
       weight: viewer.voteWeight,
-      voter_fp: voterFp,
+      device_fingerprint: deviceFingerprint,
       is_anonymous_vote: isAnonymousVote,
-      updated_at: new Date().toISOString(),
+      // Existing column, used here to make a double-submit a no-op.
+      idempotency_key: `${caseRow.id}:${viewer.userId}`,
     },
-    { onConflict: 'case_id,voter_id' }
+    { onConflict: 'case_id,user_id' }
   );
 
   if (error) {
+    // Translate the DB guards rather than leaking SQL.
     if (error.message.includes('CASE_CLOSED')) {
       return { ok: false, error: 'The gavel already dropped on this one.' };
     }
     if (error.message.includes('SELF_VOTE')) {
       return { ok: false, error: 'You cannot vote on your own case.' };
     }
-    if (error.message.includes('votes_anon_fp_idx')) {
+    if (error.message.includes('votes_anon_fingerprint_uniq')) {
       return { ok: false, error: 'This device already voted on this case.' };
     }
     console.error('[votes] upsert failed:', error.message);
@@ -143,13 +142,13 @@ export async function castVote(
     .eq('id', caseRow.id)
     .maybeSingle();
 
-  revalidatePath(`/case/${parsed.data.slug}`);
+  revalidatePath(`/case/${parsed.data.publicId}`);
   revalidatePath('/');
 
   if (!updated) return { ok: true, myVote: parsed.data.choice };
 
   // Displayed percentages follow the weighted tally, which is what the verdict
-  // and the ranking use. Showing raw counts alongside a weighted bar would lie.
+  // and the ranking use. Showing raw counts under a weighted bar would mislead.
   const split = voteSplit(updated.red_weight, updated.green_weight);
 
   return {

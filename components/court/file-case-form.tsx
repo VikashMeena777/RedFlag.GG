@@ -3,17 +3,21 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { FilePlus2, ShieldAlert } from 'lucide-react';
+import { PenLine, ShieldAlert, Check } from 'lucide-react';
 import { fileCase } from '@/lib/actions/cases';
-import { BrutButton, DocketRule } from '@/components/ui/brut';
+import { NeonButton, Rule } from '@/components/ui/neon';
 import { cn } from '@/lib/utils';
 import {
   CASE_CATEGORIES,
   CATEGORY_LABELS,
+  JUDGE_PERSONAS,
+  PERSONA_LABELS,
+  DEFAULT_PERSONA,
   TITLE_MAX,
   BODY_MAX,
   BODY_MIN,
   type CaseCategory,
+  type JudgePersona,
 } from '@/lib/types';
 
 /**
@@ -27,6 +31,7 @@ import {
 export function FileCaseForm() {
   const router = useRouter();
   const [category, setCategory] = useState<CaseCategory>('dating');
+  const [persona, setPersona] = useState<JudgePersona>(DEFAULT_PERSONA);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [accepted, setAccepted] = useState(false);
@@ -34,7 +39,11 @@ export function FileCaseForm() {
   const [isPending, startTransition] = useTransition();
 
   function submit(formData: FormData) {
+    // Both are controlled by buttons rather than native inputs, so they are set
+    // here instead of relying on form serialisation.
     formData.set('category', category);
+    formData.set('persona', persona);
+
     startTransition(async () => {
       setErrors({});
       const result = await fileCase(formData);
@@ -46,17 +55,18 @@ export function FileCaseForm() {
       }
 
       toast.success('Case filed. The jury is in.');
-      router.push(`/case/${result.slug}`);
+      router.push(`/case/${result.publicId}`);
     });
   }
 
   const bodyCount = body.trim().length;
+  const shortBy = BODY_MIN - bodyCount;
 
   return (
-    <form action={submit} className="flex flex-col gap-6">
+    <form action={submit} className="flex flex-col gap-7">
       {/* Category */}
       <fieldset>
-        <legend className="docket-label mb-2.5">Category</legend>
+        <legend className="hud mb-3">Category</legend>
         <div className="flex flex-wrap gap-2">
           {CASE_CATEGORIES.map((cat) => (
             <button
@@ -65,10 +75,10 @@ export function FileCaseForm() {
               onClick={() => setCategory(cat)}
               aria-pressed={category === cat}
               className={cn(
-                'brut-thin brut-press px-3 py-2 font-docket text-[11px] font-bold uppercase tracking-[0.12em] transition-colors',
+                'pill border px-4 py-2 text-[13px] transition-all',
                 category === cat
-                  ? 'brut-shadow-sm bg-ink text-paper'
-                  : 'bg-tape text-ink hover:bg-highlighter'
+                  ? 'border-flag-red/60 bg-flag-red-deep text-flag-red'
+                  : 'border-line bg-surface-2 text-chalk-dim hover:border-line-bright hover:text-chalk'
               )}
             >
               {CATEGORY_LABELS[cat]}
@@ -77,9 +87,32 @@ export function FileCaseForm() {
         </div>
       </fieldset>
 
+      {/* Judge persona — who hears the case changes the tone of the verdict. */}
+      <fieldset>
+        <legend className="hud mb-3">Pick your judge</legend>
+        <div className="flex flex-wrap gap-2">
+          {JUDGE_PERSONAS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPersona(p)}
+              aria-pressed={persona === p}
+              className={cn(
+                'pill border px-4 py-2 text-[13px] transition-all',
+                persona === p
+                  ? 'border-judge/60 bg-judge-deep text-judge'
+                  : 'border-line bg-surface-2 text-chalk-dim hover:border-line-bright hover:text-chalk'
+              )}
+            >
+              {PERSONA_LABELS[p]}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
       {/* Title */}
       <div>
-        <label htmlFor="title" className="docket-label mb-2 block">
+        <label htmlFor="title" className="hud mb-2.5 block">
           The charge — one line
         </label>
         <input
@@ -92,9 +125,9 @@ export function FileCaseForm() {
           placeholder="He liked her post 4 seconds after our fight"
           aria-invalid={Boolean(errors.title)}
           aria-describedby={errors.title ? 'title-error' : undefined}
-          className="brut w-full bg-paper-bright p-3 text-base text-ink placeholder:text-ink-faint"
+          className="panel-sunk w-full p-3.5 text-base text-chalk outline-none transition-colors focus:border-judge"
         />
-        <div className="mt-1.5 flex justify-between">
+        <div className="mt-2 flex justify-between gap-3">
           {errors.title ? (
             <p id="title-error" className="text-xs font-medium text-flag-red">
               {errors.title}
@@ -102,7 +135,7 @@ export function FileCaseForm() {
           ) : (
             <span />
           )}
-          <span className="font-docket text-[10px] tracking-[0.1em] text-ink-faint">
+          <span className="shrink-0 font-hud text-[10px] tracking-[0.1em] text-chalk-faint">
             {title.length}/{TITLE_MAX}
           </span>
         </div>
@@ -110,7 +143,7 @@ export function FileCaseForm() {
 
       {/* Body */}
       <div>
-        <label htmlFor="body" className="docket-label mb-2 block">
+        <label htmlFor="body" className="hud mb-2.5 block">
           The evidence — what actually happened
         </label>
         <textarea
@@ -124,72 +157,98 @@ export function FileCaseForm() {
           placeholder="Give the jury the full timeline. No names, no @s, no schools, no workplaces."
           aria-invalid={Boolean(errors.body)}
           aria-describedby={errors.body ? 'body-error' : 'body-hint'}
-          className="brut w-full resize-y bg-paper-bright p-3 text-[15px] leading-relaxed text-ink placeholder:text-ink-faint"
+          className="panel-sunk w-full resize-y p-3.5 text-[15px] leading-relaxed text-chalk outline-none transition-colors focus:border-judge"
         />
-        <div className="mt-1.5 flex justify-between gap-3">
+        <div className="mt-2 flex justify-between gap-3">
           {errors.body ? (
             <p id="body-error" className="text-xs font-medium text-flag-red">
               {errors.body}
             </p>
           ) : (
-            <p id="body-hint" className="text-xs text-ink-faint">
-              {bodyCount < BODY_MIN
-                ? `${BODY_MIN - bodyCount} more characters needed`
+            <p
+              id="body-hint"
+              className={cn(
+                'text-xs',
+                shortBy > 0 ? 'text-chalk-faint' : 'text-flag-green'
+              )}
+            >
+              {shortBy > 0
+                ? `${shortBy} more characters needed`
                 : 'Ready for the jury'}
             </p>
           )}
-          <span className="shrink-0 font-docket text-[10px] tracking-[0.1em] text-ink-faint">
+          <span className="shrink-0 font-hud text-[10px] tracking-[0.1em] text-chalk-faint">
             {bodyCount}/{BODY_MAX}
           </span>
         </div>
       </div>
 
-      <DocketRule />
+      <Rule />
 
       {/* Rules consent */}
-      <div className="brut bg-paper-dim p-4">
-        <p className="mb-3 flex items-center gap-2 font-docket text-[11px] font-bold uppercase tracking-[0.14em] text-ink">
-          <ShieldAlert className="size-4" strokeWidth={2.75} aria-hidden />
+      <div className="panel-flat p-5">
+        <p className="mb-3.5 flex items-center gap-2 font-hud text-[10px] font-medium uppercase tracking-[0.18em] text-heat">
+          <ShieldAlert className="size-4" strokeWidth={2.25} aria-hidden />
           Court rules
         </p>
-        <ul className="mb-4 space-y-1.5 text-xs leading-relaxed text-ink-soft">
-          <li>· No names, @handles, phone numbers, emails, or links.</li>
-          <li>· No schools, workplaces, or anything that identifies someone.</li>
-          <li>· No screenshots or photos of real people.</li>
-          <li>· Nothing involving anyone under 18.</li>
-          <li>· Your case can be removed and your account can lose filing rights.</li>
+        <ul className="mb-5 space-y-2 text-xs leading-relaxed text-chalk-dim">
+          <li>No names, @handles, phone numbers, emails, or links.</li>
+          <li>No schools, workplaces, or anything that identifies someone.</li>
+          <li>No screenshots or photos of real people.</li>
+          <li>Nothing involving anyone under 18.</li>
+          <li>
+            Your case can be removed and your account can lose filing rights.
+          </li>
         </ul>
 
-        <label className="flex cursor-pointer items-start gap-2.5">
+        {/*
+          Custom checkbox: a native one cannot be styled to read correctly on
+          dark glass. The real input stays in the DOM (sr-only) so the form still
+          submits `acceptedRules` and `required` validation applies.
+        */}
+        <label className="flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
             name="acceptedRules"
             checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)}
             required
-            className="brut-thin mt-0.5 size-5 shrink-0 accent-flag-red"
+            className="peer sr-only"
           />
-          <span className="text-xs font-medium leading-relaxed text-ink">
+          <span
+            aria-hidden
+            className={cn(
+              'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-all',
+              'peer-focus-visible:ring-2 peer-focus-visible:ring-judge',
+              accepted
+                ? 'border-flag-green bg-flag-green text-[#101a00]'
+                : 'border-line-bright bg-surface'
+            )}
+          >
+            {accepted && <Check className="size-3.5" strokeWidth={3} />}
+          </span>
+          <span className="text-xs font-medium leading-relaxed text-chalk">
             I confirm this story identifies nobody, and everyone involved is 18 or
             over.
           </span>
         </label>
+
         {errors.acceptedRules && (
-          <p className="mt-2 text-xs font-medium text-flag-red">
+          <p className="mt-2.5 text-xs font-medium text-flag-red">
             {errors.acceptedRules}
           </p>
         )}
       </div>
 
-      <BrutButton
+      <NeonButton
         type="submit"
         variant="red"
         size="lg"
         disabled={isPending || !accepted || bodyCount < BODY_MIN}
       >
-        <FilePlus2 className="size-4" strokeWidth={2.75} aria-hidden />
+        <PenLine className="size-4" strokeWidth={2.5} aria-hidden />
         {isPending ? 'Filing…' : 'File the case'}
-      </BrutButton>
+      </NeonButton>
     </form>
   );
 }

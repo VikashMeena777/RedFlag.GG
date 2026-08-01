@@ -34,8 +34,32 @@ export const serverEnv = {
   get groqApiKey() {
     return optional('GROQ_API_KEY');
   },
-  get geminiApiKey() {
-    return optional('GEMINI_API_KEY');
+  /** NVIDIA NIM — OpenAI-compatible fallback provider. */
+  get nvidiaApiKey() {
+    return optional('NVIDIA_API_KEY');
+  },
+
+  /**
+   * Whether the Supabase email template includes `{{ .Token }}`.
+   *
+   * Supabase ships ONE template for magic links and OTPs; it only contains a
+   * 6-digit code if you add that variable. Default template sends a link instead,
+   * which makes a code-entry UI look broken. Set to `false` if you keep the link
+   * template and the UI will tell users to click the link.
+   */
+  get emailSendsCode() {
+    return optional('SUPABASE_EMAIL_SENDS_CODE') !== 'false';
+  },
+
+  /** Cashfree Payment Gateway. */
+  get cashfreeEnv() {
+    return optional('CASHFREE_ENV') || 'sandbox';
+  },
+  get cashfreeAppId() {
+    return required('CASHFREE_APP_ID');
+  },
+  get cashfreeSecretKey() {
+    return required('CASHFREE_SECRET_KEY');
   },
   get upstashUrl() {
     return optional('UPSTASH_REDIS_REST_URL');
@@ -49,15 +73,7 @@ export const serverEnv = {
   get cronSecret() {
     return optional('CRON_SECRET');
   },
-  get stripeSecretKey() {
-    return required('STRIPE_SECRET_KEY');
-  },
-  get stripeWebhookSecret() {
-    return required('STRIPE_WEBHOOK_SECRET');
-  },
-  get stripePlusPriceId() {
-    return required('STRIPE_PLUS_PRICE_ID');
-  },
+  // Cashfree accessors are declared above, next to the other provider keys.
   get siteUrl() {
     return process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
   },

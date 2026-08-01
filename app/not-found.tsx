@@ -4,25 +4,29 @@ import { FileQuestion } from 'lucide-react';
 export default function NotFound() {
   return (
     <div className="court-container flex min-h-[70vh] flex-col items-center justify-center py-16 text-center">
-      <FileQuestion
-        className="size-12 text-ink-faint"
-        strokeWidth={2.75}
-        aria-hidden
-      />
-      <p className="docket-label mt-5">Case number not found</p>
-      <h1 className="mt-2 text-[clamp(2.5rem,12vw,4.5rem)] leading-[0.9] text-ink">
-        NO SUCH
-        <br />
-        <span className="text-flag-red">CASE</span>
+      <span className="flex size-16 items-center justify-center rounded-full bg-surface-2 ring-1 ring-line">
+        <FileQuestion
+          className="size-7 text-chalk-faint"
+          strokeWidth={2}
+          aria-hidden
+        />
+      </span>
+
+      <p className="mt-6 font-hud text-[10px] font-medium uppercase tracking-[0.2em] text-chalk-faint">
+        Case number not found
+      </p>
+
+      <h1 className="mt-3 font-display text-[clamp(2.4rem,11vw,4rem)] font-extrabold leading-[0.94] tracking-[-0.05em]">
+        <span className="chrome">No such</span>{' '}
+        <span className="text-flag-red glow-red">case</span>
       </h1>
-      <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-ink-soft">
-        This file was never opened, or the clerk removed it. Either way, the docket
+
+      <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-chalk-dim">
+        This file was never opened, or the clerk pulled it. Either way, the docket
         has plenty more drama.
       </p>
-      <Link
-        href="/"
-        className="brut brut-shadow brut-press mt-6 inline-flex items-center gap-2 bg-highlighter px-5 py-3 font-docket text-xs font-bold uppercase tracking-[0.12em] text-ink"
-      >
+
+      <Link href="/" className="pill pill-glass mt-7 px-5 py-3 text-sm">
         Back to the docket
       </Link>
     </div>

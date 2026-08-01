@@ -2,7 +2,6 @@ import { ImageResponse } from 'next/og';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { verdictSchema } from '@/lib/ai/verdict-schema';
 import { checkLimit } from '@/lib/rate-limit';
 import { clientIp } from '@/lib/auth/fingerprint';
 import {
@@ -10,7 +9,7 @@ import {
   loadCardFonts,
   cardFontConfig,
 } from '@/lib/og/verdict-card';
-import type { CaseCategory } from '@/lib/types';
+import type { CaseCategory, VerdictKind } from '@/lib/types';
 
 /**
  * Story-ready verdict card, 1080x1350 (4:5).
@@ -18,18 +17,17 @@ import type { CaseCategory } from '@/lib/types';
  * Downloaded by the share button for pasting into an Instagram or WhatsApp
  * story. Same layout module as the OG unfurl, different frame.
  *
- * Only renders closed, unhidden cases. A pending or moderated case returns 404
- * rather than an image, so this route can never become a way to read a hidden
- * case body.
+ * Only renders closed cases. A pending or moderated case returns 404 rather than
+ * an image, so this route can never become a way to read a non-public case body.
  */
 
 export const size = { width: 1080, height: 1350 };
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ slug: string }> }
+  { params }: { params: Promise<{ caseId: string }> }
 ) {
-  const { slug } = await params;
+  const { caseId } = await params;
 
   const ip = clientIp(await headers());
   const limit = await checkLimit('card:download', ip);
@@ -44,23 +42,24 @@ export async function GET(
   const { data } = await admin
     .from('cases')
     .select(
-      'case_no, category, title, verdict, red_votes, green_votes, red_weight, green_weight, status, is_hidden'
+      'public_id, category, title, ai_verdict, ai_verdict_line, ai_roast, ai_summary, toxicity_score, red_votes, green_votes, red_weight, green_weight'
     )
-    .eq('slug', slug)
+    .eq('public_id', caseId)
     .eq('status', 'closed')
-    .eq('is_hidden', false)
     .maybeSingle();
 
-  if (!data?.verdict) {
+  const hasVerdict =
+    data &&
+    data.ai_verdict !== null &&
+    data.ai_verdict_line !== null &&
+    data.ai_roast !== null &&
+    data.toxicity_score !== null;
+
+  if (!hasVerdict) {
     return NextResponse.json(
       { error: 'No verdict card available for this case yet.' },
       { status: 404 }
     );
-  }
-
-  const parsed = verdictSchema.safeParse(data.verdict);
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Verdict unavailable.' }, { status: 404 });
   }
 
   const fonts = await loadCardFonts();
@@ -70,10 +69,16 @@ export async function GET(
       <VerdictCard
         variant="story"
         data={{
-          caseNo: data.case_no,
+          publicId: data.public_id,
           category: data.category as CaseCategory,
-          title: data.title,
-          verdict: parsed.data,
+          title: data.title ?? 'Untitled case',
+          verdict: {
+            verdict: data.ai_verdict as VerdictKind,
+            headline: data.ai_verdict_line!,
+            roast: data.ai_roast!,
+            summary: data.ai_summary ?? '',
+            toxicity: data.toxicity_score!,
+          },
           redVotes: data.red_votes,
           greenVotes: data.green_votes,
           redWeight: data.red_weight,
@@ -85,12 +90,11 @@ export async function GET(
   );
 
   // A closed verdict never changes, so it is safe to cache hard at the edge.
-  const response = new NextResponse(image.body, {
+  return new NextResponse(image.body, {
     headers: {
       'Content-Type': 'image/png',
       'Cache-Control': 'public, max-age=31536000, immutable',
-      'Content-Disposition': `attachment; filename="redflag-${slug}.png"`,
+      'Content-Disposition': `attachment; filename="redflag-${caseId.toLowerCase()}.png"`,
     },
   });
-  return response;
 }

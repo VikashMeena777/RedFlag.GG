@@ -1,33 +1,43 @@
 import type { Metadata, Viewport } from 'next';
-import { Anton, Space_Mono, Inter } from 'next/font/google';
+import {
+  Bricolage_Grotesque,
+  Azeret_Mono,
+  Plus_Jakarta_Sans,
+} from 'next/font/google';
 import { Toaster } from 'sonner';
 import './globals.css';
 
 /*
- * Three faces, three jobs. Anton for authority, Space Mono for docket chrome,
- * Inter for readable body copy. Each is exposed as a CSS variable consumed by
- * the `@theme` font tokens in globals.css.
+ * Three faces, three jobs:
+ *  - Bricolage Grotesque — display. Variable, wide, a little unhinged. Used in
+ *    MIXED CASE, which is the point: the sibling newsprint project owns
+ *    condensed all-caps display type, so this must not go near it.
+ *  - Azeret Mono — HUD voice for case numbers, timers, counts. Squarer and more
+ *    technical than Space Mono.
+ *  - Plus Jakarta Sans — body. Rounder terminals than Inter, reads friendlier on
+ *    a dark background.
  *
- * The matching .ttf files in `assets/` are what Satori uses for OG cards —
- * next/font cannot be read by the image renderer, so the two must stay in sync.
+ * The .ttf files in `assets/` are what Satori uses for share cards; next/font is
+ * unavailable to the image renderer, so the two sets must stay in sync.
  */
-const anton = Anton({
+const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
-  weight: '400',
-  variable: '--font-anton',
+  weight: ['600', '700', '800'],
+  variable: '--font-bricolage',
   display: 'swap',
 });
 
-const spaceMono = Space_Mono({
+const azeretMono = Azeret_Mono({
   subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-space-mono',
+  weight: ['400', '500', '700'],
+  variable: '--font-azeret',
   display: 'swap',
 });
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-jakarta',
   display: 'swap',
 });
 
@@ -56,13 +66,22 @@ export const metadata: Metadata = {
     description:
       'File your dating drama. The jury votes. The AI judge roasts. Court is in session.',
   },
-  robots: { index: true, follow: true },
+  /*
+   * Deliberately no `robots` here.
+   *
+   * Next.js injects `noindex` on 404 responses, but a root-layout `index, follow`
+   * is emitted *after* it, producing contradictory tags on not-found pages. The
+   * default is already indexable, and `app/robots.ts` states the crawl policy, so
+   * declaring it again buys nothing and breaks the 404 case.
+   */
 };
 
 export const viewport: Viewport = {
-  themeColor: '#F4EFE6',
+  themeColor: '#07060C',
   width: 'device-width',
   initialScale: 1,
+  // Dark-first: keeps the browser chrome from flashing white on load.
+  colorScheme: 'dark',
 };
 
 export default function RootLayout({
@@ -71,7 +90,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${anton.variable} ${spaceMono.variable} ${inter.variable}`}
+      className={`${bricolage.variable} ${azeretMono.variable} ${jakarta.variable}`}
     >
       <body className="antialiased">
         {children}
@@ -79,12 +98,13 @@ export default function RootLayout({
           position="bottom-center"
           toastOptions={{
             style: {
-              background: '#F4EFE6',
-              color: '#12100E',
-              border: '3px solid #12100E',
-              borderRadius: 0,
-              boxShadow: '6px 6px 0 0 #12100E',
-              fontFamily: 'var(--font-inter), system-ui, sans-serif',
+              background: 'rgba(26, 23, 40, 0.92)',
+              color: '#F5F2FF',
+              border: '1px solid #423A63',
+              borderRadius: '14px',
+              boxShadow: '0 12px 40px -8px rgba(0, 0, 0, 0.9)',
+              backdropFilter: 'blur(16px)',
+              fontFamily: 'var(--font-jakarta), system-ui, sans-serif',
               fontWeight: 500,
             },
           }}

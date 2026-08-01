@@ -30,7 +30,13 @@ export const env = {
   get siteUrl() {
     return process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
   },
-  get stripePublishableKey() {
-    return process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  /**
+   * Cashfree environment, needed by the browser SDK to pick sandbox vs production.
+   * Not a secret — the app id and secret stay server-side.
+   */
+  get cashfreeMode(): 'sandbox' | 'production' {
+    return process.env.NEXT_PUBLIC_CASHFREE_ENV === 'production'
+      ? 'production'
+      : 'sandbox';
   },
 } as const;

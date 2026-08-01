@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { test, fc } from '@fast-check/vitest';
-import { parseVerdict, verdictSchema, mistrialVerdict } from '../verdict-schema';
+import { parseVerdict, verdictSchema, splitVerdict } from '../verdict-schema';
 
 const VALID = {
-  verdict: 'RED_FLAG',
+  verdict: 'red',
   headline: 'GUILTY OF BREADCRUMBING',
   roast:
     'He kept you on a subscription plan with no benefits. You were not in a situationship, you were in a waiting room with worse magazines.',
-  sentence: '6 MONTHS NO CONTACT',
+  summary: 'Breadcrumbing, eight months',
   toxicity: 87,
 };
 
@@ -43,6 +43,7 @@ describe('parseVerdict', () => {
 
   it('rejects an unknown verdict value', () => {
     expect(parseVerdict(JSON.stringify({ ...VALID, verdict: 'GUILTY' }))).toBeNull();
+    expect(parseVerdict(JSON.stringify({ ...VALID, verdict: 'maybe' }))).toBeNull();
   });
 
   it('rejects a headline that would overflow the card', () => {
@@ -52,8 +53,9 @@ describe('parseVerdict', () => {
 
   it('accepts a headline exactly at the 60-char limit', () => {
     const exact = 'X'.repeat(60);
-    expect(parseVerdict(JSON.stringify({ ...VALID, headline: exact }))?.headline)
-      .toHaveLength(60);
+    expect(
+      parseVerdict(JSON.stringify({ ...VALID, headline: exact }))?.headline
+    ).toHaveLength(60);
   });
 
   it('rejects missing fields', () => {
@@ -83,20 +85,54 @@ describe('parseVerdict', () => {
   });
 });
 
-describe('mistrialVerdict', () => {
+/*
+ * Value normalisation exists because models reliably answer RED_FLAG / RED /
+ * "red flag" when the database enum wants `red`. Without it, a perfectly good
+ * generation gets discarded and we pay for a pointless fallback call.
+ */
+describe('parseVerdict — verdict value normalisation', () => {
+  const cases: Array<[string, string]> = [
+    ['RED_FLAG', 'red'],
+    ['red_flag', 'red'],
+    ['RED', 'red'],
+    ['red flag', 'red'],
+    ['GREEN_FLAG', 'green'],
+    ['green flag', 'green'],
+    ['GREEN', 'green'],
+    ['SPLIT', 'split'],
+    ['split_verdict', 'split'],
+    ['MISTRIAL', 'split'],
+    ['hung jury', 'split'],
+    ['undecided', 'split'],
+  ];
+
+  for (const [input, expected] of cases) {
+    it(`maps "${input}" to "${expected}"`, () => {
+      const parsed = parseVerdict(JSON.stringify({ ...VALID, verdict: input }));
+      expect(parsed?.verdict).toBe(expected);
+    });
+  }
+
+  it('leaves an unrecognised value alone so the schema rejects it', () => {
+    // Silently mapping an unknown value would risk a wrong verdict on a card.
+    expect(parseVerdict(JSON.stringify({ ...VALID, verdict: 'banana' }))).toBeNull();
+  });
+});
+
+describe('splitVerdict', () => {
   it('is always schema-valid', () => {
     for (const pct of [0, 33.3, 50, 99.9, 100]) {
-      expect(verdictSchema.safeParse(mistrialVerdict(pct)).success).toBe(true);
+      expect(verdictSchema.safeParse(splitVerdict(pct)).success).toBe(true);
     }
   });
 
   it('borrows the jury read rather than inventing a score', () => {
-    expect(mistrialVerdict(72.4).toxicity).toBe(72);
-    expect(mistrialVerdict(0).toxicity).toBe(0);
+    expect(splitVerdict(72.4).toxicity).toBe(72);
+    expect(splitVerdict(0).toxicity).toBe(0);
   });
 
-  it('is labelled MISTRIAL', () => {
-    expect(mistrialVerdict(50).verdict).toBe('MISTRIAL');
+  it('is labelled split', () => {
+    expect(splitVerdict(50).verdict).toBe('split');
   });
 });
 
@@ -113,9 +149,9 @@ describe('parseVerdict — properties', () => {
   );
 
   test.prop([fc.double({ min: 0, max: 100, noNaN: true })])(
-    'mistrial output always validates',
+    'split verdict output always validates',
     (pct) => {
-      expect(verdictSchema.safeParse(mistrialVerdict(pct)).success).toBe(true);
+      expect(verdictSchema.safeParse(splitVerdict(pct)).success).toBe(true);
     }
   );
 

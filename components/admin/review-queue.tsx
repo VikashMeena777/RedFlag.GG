@@ -2,43 +2,52 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { EyeOff, Eye, Trash2, ShieldCheck, Flag } from 'lucide-react';
+import { EyeOff, Eye, Trash2, ShieldCheck, Flag, Check } from 'lucide-react';
 import {
   hideCase,
-  restoreCase,
+  approveCase,
   removeCase,
   dismissReports,
-  type FlaggedCase,
+  type QueuedCase,
 } from '@/lib/actions/admin';
-import { BrutButton, BrutCard, DocketRule, Stamp } from '@/components/ui/brut';
+import { NeonButton, Panel, Chip, Rule } from '@/components/ui/neon';
 import { formatCaseNo, excerpt } from '@/lib/utils';
+import {
+  REPORT_REASON_LABELS,
+  type ReportReason,
+} from '@/lib/moderation/report-reasons';
+import { MAX_STRIKES } from '@/lib/types';
 
 /**
  * Review queue UI.
  *
- * Removal is the destructive action here — it strikes the author — so it asks for
- * confirmation and an optional note that lands in the audit log. Hiding is
- * reversible and does not.
+ * Removal is the destructive action — it strikes the author — so it asks for
+ * confirmation and an optional note that lands in the audit log. Hiding and
+ * approving are reversible and do not.
  */
-export function ReviewQueue({ cases }: { cases: FlaggedCase[] }) {
+export function ReviewQueue({ cases }: { cases: QueuedCase[] }) {
   if (cases.length === 0) {
     return (
-      <BrutCard className="p-8 text-center">
-        <ShieldCheck
-          className="mx-auto size-10 text-flag-green"
-          strokeWidth={2.75}
-          aria-hidden
-        />
-        <h2 className="mt-4 text-2xl text-ink">Queue is clear</h2>
-        <p className="mt-2 text-sm text-ink-soft">
-          No reported or auto-hidden cases waiting.
+      <Panel className="p-10 text-center">
+        <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-flag-green-deep ring-1 ring-flag-green/40">
+          <ShieldCheck
+            className="size-6 text-flag-green"
+            strokeWidth={2.25}
+            aria-hidden
+          />
+        </span>
+        <h2 className="mt-5 font-display text-2xl font-bold tracking-[-0.04em] text-chalk">
+          Queue is clear
+        </h2>
+        <p className="mt-2 text-sm text-chalk-dim">
+          Nothing reported, hidden, or awaiting review.
         </p>
-      </BrutCard>
+      </Panel>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {cases.map((item) => (
         <ReviewRow key={item.id} item={item} />
       ))}
@@ -46,7 +55,7 @@ export function ReviewQueue({ cases }: { cases: FlaggedCase[] }) {
   );
 }
 
-function ReviewRow({ item }: { item: FlaggedCase }) {
+function ReviewRow({ item }: { item: QueuedCase }) {
   const [isPending, startTransition] = useTransition();
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [note, setNote] = useState('');
@@ -66,68 +75,86 @@ function ReviewRow({ item }: { item: FlaggedCase }) {
     });
   }
 
+  /*
+   * Tone the panel edge by severity, so a triage pass can be done by scanning:
+   * hidden is already actioned (red), pending_review is waiting on a human (cyan).
+   */
+  const tone =
+    item.status === 'hidden'
+      ? 'red'
+      : item.status === 'pending_review'
+        ? 'judge'
+        : 'neutral';
+
   return (
-    <BrutCard as="article" className="p-4 sm:p-5">
+    <Panel as="article" tone={tone} className="p-5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-docket text-[11px] font-bold tracking-[0.14em] text-ink">
-          {formatCaseNo(item.caseNo)}
-        </span>
-        {item.isHidden && (
-          <Stamp straight tone="red" className="text-[10px]">
-            HIDDEN
-          </Stamp>
+        <span className="hud">{formatCaseNo(item.publicId)}</span>
+
+        {item.status === 'hidden' && <Chip tone="red">Hidden</Chip>}
+        {item.status === 'pending_review' && (
+          <Chip tone="judge">Awaiting review</Chip>
         )}
-        {item.flagCount > 0 && (
-          <span className="inline-flex items-center gap-1 bg-flag-red-lo px-2 py-0.5 font-docket text-[10px] font-bold tracking-[0.12em] text-flag-red">
-            <Flag className="size-3" strokeWidth={2.75} aria-hidden />
-            {item.flagCount} REPORT{item.flagCount === 1 ? '' : 'S'}
-          </span>
+
+        {item.reportCount > 0 && (
+          <Chip tone="red">
+            <Flag className="size-3" strokeWidth={2.5} aria-hidden />
+            {item.reportCount} report{item.reportCount === 1 ? '' : 's'}
+          </Chip>
         )}
-        {item.needsReview && item.flagCount === 0 && (
-          <Stamp straight tone="judge" className="text-[10px]">
-            LANGUAGE
-          </Stamp>
+
+        {/* Author standing informs how severe a removal would be. */}
+        {item.authorHandle && (
+          <Chip tone={item.authorStrikes > 0 ? 'heat' : 'neutral'}>
+            {item.authorHandle} · {item.authorStrikes}/{MAX_STRIKES}
+          </Chip>
         )}
       </div>
 
-      <h3 className="mt-3 text-lg leading-tight text-ink">{item.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+      <h3 className="mt-3.5 font-display text-lg font-bold leading-snug tracking-[-0.03em] text-chalk">
+        {item.title}
+      </h3>
+      <p className="mt-2 text-sm leading-relaxed text-chalk-dim">
         {excerpt(item.body, 320)}
       </p>
 
-      {item.reasons.length > 0 && (
+      {item.reports.length > 0 && (
         <>
-          <DocketRule className="my-4" />
-          <p className="docket-label mb-2">Reports</p>
-          <ul className="space-y-1.5">
-            {item.reasons.map((reason, i) => (
+          <Rule className="my-5" />
+          <p className="hud mb-2.5">Reports</p>
+          <ul className="space-y-2">
+            {item.reports.map((report, i) => (
               <li
                 key={i}
-                className="border-l-[4px] border-flag-red pl-2.5 text-xs leading-relaxed text-ink"
+                className="border-l-2 border-flag-red/60 pl-3 text-xs leading-relaxed text-chalk-dim"
               >
-                {reason}
+                <span className="font-hud font-medium uppercase tracking-[0.1em] text-flag-red">
+                  {REPORT_REASON_LABELS[report.reason as ReportReason] ??
+                    report.reason}
+                </span>
+                {report.details && <span> — {report.details}</span>}
               </li>
             ))}
           </ul>
         </>
       )}
 
-      <DocketRule className="my-4" />
+      <Rule className="my-5" />
 
       {confirmRemove ? (
         <div className="flex flex-col gap-3">
           <p className="text-sm font-medium text-flag-red">
-            Remove this case and strike the author? This is not reversible from
-            here.
+            Remove this case and strike the author? At {MAX_STRIKES} strikes they
+            lose filing rights.
           </p>
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Reason for the audit log (optional)"
-            className="brut-thin bg-paper-bright p-2 text-sm text-ink placeholder:text-ink-faint"
+            className="panel-sunk p-2.5 text-sm text-chalk outline-none transition-colors focus:border-judge"
           />
-          <div className="flex flex-wrap gap-2">
-            <BrutButton
+          <div className="flex flex-wrap gap-2.5">
+            <NeonButton
               size="sm"
               variant="red"
               disabled={isPending}
@@ -135,65 +162,69 @@ function ReviewRow({ item }: { item: FlaggedCase }) {
                 run(() => removeCase(item.id, note || undefined), 'Case removed')
               }
             >
-              <Trash2 className="size-4" strokeWidth={2.75} aria-hidden />
+              <Trash2 className="size-4" strokeWidth={2.25} aria-hidden />
               Confirm removal
-            </BrutButton>
-            <BrutButton
+            </NeonButton>
+            <NeonButton
               size="sm"
               variant="ghost"
               onClick={() => setConfirmRemove(false)}
             >
               Cancel
-            </BrutButton>
+            </NeonButton>
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {item.isHidden ? (
-            <BrutButton
+        <div className="flex flex-wrap gap-2.5">
+          {item.status !== 'live' && (
+            <NeonButton
               size="sm"
               variant="green"
               disabled={isPending}
-              onClick={() => run(() => restoreCase(item.id), 'Case restored')}
+              onClick={() => run(() => approveCase(item.id), 'Case published')}
             >
-              <Eye className="size-4" strokeWidth={2.75} aria-hidden />
-              Restore
-            </BrutButton>
-          ) : (
-            <BrutButton
+              <Check className="size-4" strokeWidth={2.5} aria-hidden />
+              Publish
+            </NeonButton>
+          )}
+
+          {item.status === 'live' && (
+            <NeonButton
               size="sm"
-              variant="ink"
+              variant="glass"
               disabled={isPending}
               onClick={() => run(() => hideCase(item.id), 'Case hidden')}
             >
-              <EyeOff className="size-4" strokeWidth={2.75} aria-hidden />
+              <EyeOff className="size-4" strokeWidth={2.25} aria-hidden />
               Hide
-            </BrutButton>
+            </NeonButton>
           )}
 
-          <BrutButton
-            size="sm"
-            variant="ghost"
-            disabled={isPending}
-            onClick={() =>
-              run(() => dismissReports(item.id), 'Reports dismissed')
-            }
-          >
-            <ShieldCheck className="size-4" strokeWidth={2.75} aria-hidden />
-            Dismiss reports
-          </BrutButton>
+          {item.reportCount > 0 && (
+            <NeonButton
+              size="sm"
+              variant="ghost"
+              disabled={isPending}
+              onClick={() =>
+                run(() => dismissReports(item.id), 'Reports dismissed')
+              }
+            >
+              <Eye className="size-4" strokeWidth={2.25} aria-hidden />
+              Dismiss reports
+            </NeonButton>
+          )}
 
-          <BrutButton
+          <NeonButton
             size="sm"
             variant="red"
             disabled={isPending}
             onClick={() => setConfirmRemove(true)}
           >
-            <Trash2 className="size-4" strokeWidth={2.75} aria-hidden />
+            <Trash2 className="size-4" strokeWidth={2.25} aria-hidden />
             Remove + strike
-          </BrutButton>
+          </NeonButton>
         </div>
       )}
-    </BrutCard>
+    </Panel>
   );
 }

@@ -1,19 +1,18 @@
 import { ImageResponse } from 'next/og';
 import { createServiceClient } from '@/lib/supabase/service';
-import { verdictSchema } from '@/lib/ai/verdict-schema';
 import {
   VerdictCard,
   loadCardFonts,
   cardFontConfig,
 } from '@/lib/og/verdict-card';
-import type { CaseCategory } from '@/lib/types';
+import type { CaseCategory, VerdictKind } from '@/lib/types';
 
 /**
  * Link-unfurl card for a case.
  *
  * This is the growth loop: pasting a case link into WhatsApp, iMessage or X
  * renders the full verdict inline, so the drama travels without anyone needing
- * to click. Statically cached per case once the verdict exists.
+ * to click.
  */
 
 export const alt = 'RedFlag.GG verdict';
@@ -24,9 +23,9 @@ export const contentType = 'image/png';
 export default async function Image({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ caseId: string }>;
 }) {
-  const { slug } = await params;
+  const { caseId } = await params;
 
   // Service client: this route is public and must render even for crawlers with
   // no session, but it only ever exposes an already-public closed verdict.
@@ -34,24 +33,23 @@ export default async function Image({
   const { data } = await admin
     .from('cases')
     .select(
-      'case_no, category, title, verdict, red_votes, green_votes, red_weight, green_weight, status, is_hidden'
+      'public_id, category, title, status, ai_verdict, ai_verdict_line, ai_roast, ai_summary, toxicity_score, red_votes, green_votes, red_weight, green_weight'
     )
-    .eq('slug', slug)
+    .eq('public_id', caseId)
     .maybeSingle();
 
   const fonts = await loadCardFonts();
 
-  const parsedVerdict =
-    data?.verdict != null ? verdictSchema.safeParse(data.verdict) : null;
+  const hasVerdict =
+    data?.status === 'closed' &&
+    data.ai_verdict !== null &&
+    data.ai_verdict_line !== null &&
+    data.ai_roast !== null &&
+    data.toxicity_score !== null;
 
   // No verdict yet, hidden, or removed → generic in-session card. Never leak the
-  // body of a hidden case through the image renderer.
-  if (
-    !data ||
-    data.is_hidden ||
-    data.status !== 'closed' ||
-    !parsedVerdict?.success
-  ) {
+  // body of a non-public case through the image renderer.
+  if (!data || !hasVerdict) {
     return new ImageResponse(<PendingCard />, {
       ...size,
       fonts: cardFontConfig(fonts),
@@ -63,10 +61,16 @@ export default async function Image({
       <VerdictCard
         variant="og"
         data={{
-          caseNo: data.case_no,
+          publicId: data.public_id,
           category: data.category as CaseCategory,
-          title: data.title,
-          verdict: parsedVerdict.data,
+          title: data.title ?? 'Untitled case',
+          verdict: {
+            verdict: data.ai_verdict as VerdictKind,
+            headline: data.ai_verdict_line!,
+            roast: data.ai_roast!,
+            summary: data.ai_summary ?? '',
+            toxicity: data.toxicity_score!,
+          },
           redVotes: data.red_votes,
           greenVotes: data.green_votes,
           redWeight: data.red_weight,

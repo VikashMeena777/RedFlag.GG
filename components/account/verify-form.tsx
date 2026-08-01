@@ -10,7 +10,7 @@ import {
   startGoogleOAuth,
   signOut,
 } from '@/lib/actions/auth';
-import { BrutButton, DocketRule } from '@/components/ui/brut';
+import { NeonButton, Rule } from '@/components/ui/neon';
 
 /**
  * Verification form.
@@ -25,6 +25,14 @@ export function VerifyForm({ signedInEmail }: { signedInEmail?: string | null })
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  /**
+   * Whether the email actually contains a 6-digit code.
+   *
+   * Supabase sends one template for both magic links and OTPs; it only includes a
+   * code when the template has `{{ .Token }}`. The server reports which it is, so
+   * the UI never asks for a code that was never sent.
+   */
+  const [expectsCode, setExpectsCode] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
 
@@ -37,18 +45,18 @@ export function VerifyForm({ signedInEmail }: { signedInEmail?: string | null })
             strokeWidth={2.75}
             aria-hidden
           />
-          <p className="text-sm font-medium text-ink">
+          <p className="text-sm font-medium text-chalk">
             Verified as{' '}
-            <span className="font-docket text-xs tracking-[0.08em]">
+            <span className="font-hud text-xs tracking-[0.08em]">
               {signedInEmail}
             </span>
           </p>
         </div>
-        <p className="text-xs leading-relaxed text-ink-soft">
+        <p className="text-xs leading-relaxed text-chalk-dim">
           You can file cases and report others. Your email is never shown on any
           case.
         </p>
-        <BrutButton
+        <NeonButton
           variant="ghost"
           size="sm"
           className="self-start"
@@ -61,9 +69,9 @@ export function VerifyForm({ signedInEmail }: { signedInEmail?: string | null })
           }
           disabled={isPending}
         >
-          <LogOut className="size-4" strokeWidth={2.75} aria-hidden />
+          <LogOut className="size-4" strokeWidth={2.25} aria-hidden />
           Sign out
-        </BrutButton>
+        </NeonButton>
       </div>
     );
   }
@@ -77,8 +85,20 @@ export function VerifyForm({ signedInEmail }: { signedInEmail?: string | null })
         if (result.error) toast.error(result.error);
         return;
       }
+
+      /*
+       * Supabase sends ONE template for magic links and codes. If the project
+       * still uses the default `{{ .ConfirmationURL }}` template, no code is in
+       * the email — so telling the user to type one makes the app look broken.
+       * `expectsCode` reflects how the template is configured.
+       */
+      setExpectsCode(result.expectsCode !== false);
       setStep('code');
-      toast.success('Code sent. Check your inbox.');
+      toast.success(
+        result.expectsCode === false
+          ? 'Check your inbox and click the link.'
+          : 'Code sent. Check your inbox.'
+      );
     });
   }
 
@@ -112,7 +132,7 @@ export function VerifyForm({ signedInEmail }: { signedInEmail?: string | null })
     <div className="flex flex-col gap-5">
       {step === 'email' ? (
         <form action={sendCode} className="flex flex-col gap-3">
-          <label htmlFor="email" className="docket-label">
+          <label htmlFor="email" className="hud">
             Email address
           </label>
           <input
@@ -126,53 +146,82 @@ export function VerifyForm({ signedInEmail }: { signedInEmail?: string | null })
             placeholder="you@example.com"
             aria-invalid={Boolean(errors.email)}
             aria-describedby={errors.email ? 'email-error' : undefined}
-            className="brut w-full bg-paper-bright p-3 text-base text-ink placeholder:text-ink-faint"
+            className="panel-sunk w-full p-3.5 text-base text-chalk outline-none transition-colors focus:border-judge"
           />
           {errors.email && (
             <p id="email-error" className="text-xs font-medium text-flag-red">
               {errors.email}
             </p>
           )}
-          <BrutButton type="submit" variant="red" disabled={isPending}>
-            <Mail className="size-4" strokeWidth={2.75} aria-hidden />
+          <NeonButton type="submit" variant="red" disabled={isPending}>
+            <Mail className="size-4" strokeWidth={2.25} aria-hidden />
             {isPending ? 'Sending…' : 'Send me a code'}
-          </BrutButton>
+          </NeonButton>
         </form>
       ) : (
         <form action={verify} className="flex flex-col gap-3">
-          <label htmlFor="token" className="docket-label">
-            6-digit code sent to {email}
+          <label htmlFor="token" className="hud">
+            {expectsCode
+              ? `6-digit code sent to ${email}`
+              : `Link sent to ${email}`}
           </label>
-          <input
-            id="token"
-            name="token"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            required
-            placeholder="000000"
-            aria-invalid={Boolean(errors.token)}
-            aria-describedby={errors.token ? 'token-error' : undefined}
-            className="brut w-full bg-paper-bright p-3 text-center font-docket text-2xl tracking-[0.4em] text-ink placeholder:text-ink-faint"
-          />
-          {errors.token && (
-            <p id="token-error" className="text-xs font-medium text-flag-red">
-              {errors.token}
-            </p>
+
+          {/*
+            Link-only template: no code exists to type, so showing a code input
+            would be asking for something that was never sent.
+          */}
+          {!expectsCode ? (
+            <div className="panel-flat p-5">
+              <p className="text-sm leading-relaxed text-chalk">
+                Open the email and click <strong>Confirm</strong>. You will land
+                back here verified.
+              </p>
+              <p className="mt-2.5 text-xs leading-relaxed text-chalk-dim">
+                Use the same browser you are in now, otherwise the votes you have
+                already cast will stay with your anonymous session.
+              </p>
+            </div>
+          ) : (
+            <>
+              <input
+                id="token"
+                name="token"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) =>
+                  setCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                }
+                required
+                placeholder="000000"
+                aria-invalid={Boolean(errors.token)}
+                aria-describedby={errors.token ? 'token-error' : undefined}
+                className="panel-sunk w-full p-3.5 text-center font-hud text-2xl tracking-[0.4em] text-chalk outline-none transition-colors focus:border-judge"
+              />
+              {errors.token && (
+                <p id="token-error" className="text-xs font-medium text-flag-red">
+                  {errors.token}
+                </p>
+              )}
+              <NeonButton
+                type="submit"
+                variant="red"
+                disabled={isPending || code.length !== 6}
+              >
+                <ShieldCheck className="size-4" strokeWidth={2.25} aria-hidden />
+                {isPending ? 'Verifying…' : 'Verify'}
+              </NeonButton>
+              <p className="text-xs leading-relaxed text-chalk-dim">
+                No code in the email? Click the link inside it instead — that works
+                too.
+              </p>
+            </>
           )}
-          <BrutButton
-            type="submit"
-            variant="red"
-            disabled={isPending || code.length !== 6}
-          >
-            <ShieldCheck className="size-4" strokeWidth={2.75} aria-hidden />
-            {isPending ? 'Verifying…' : 'Verify'}
-          </BrutButton>
+
           <button
             type="button"
             onClick={() => setStep('email')}
-            className="self-start font-docket text-[10px] font-bold uppercase tracking-[0.14em] text-ink-faint hover:text-ink"
+            className="self-start text-xs font-medium text-chalk-faint underline-offset-4 transition-colors hover:text-judge hover:underline"
           >
             Use a different email
           </button>
@@ -180,18 +229,18 @@ export function VerifyForm({ signedInEmail }: { signedInEmail?: string | null })
       )}
 
       <div className="flex items-center gap-3">
-        <DocketRule className="flex-1" />
-        <span className="font-docket text-[10px] font-bold tracking-[0.14em] text-ink-faint">
-          OR
+        <Rule className="flex-1" />
+        <span className="font-hud text-[10px] font-medium uppercase tracking-[0.18em] text-chalk-faint">
+          or
         </span>
-        <DocketRule className="flex-1" />
+        <Rule className="flex-1" />
       </div>
 
-      <BrutButton variant="ghost" onClick={google} disabled={isPending}>
+      <NeonButton variant="glass" onClick={google} disabled={isPending}>
         Continue with Google
-      </BrutButton>
+      </NeonButton>
 
-      <p className="text-xs leading-relaxed text-ink-soft">
+      <p className="text-xs leading-relaxed text-chalk-dim">
         Verifying keeps the votes you have already cast. Your email is only used to
         confirm you are a real person — it is never shown on a case.
       </p>

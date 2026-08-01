@@ -1,88 +1,121 @@
 @import 'tailwindcss';
 
 /* ═══════════════════════════════════════════════════════════════════
-   REDFLAG.GG — "COURT BRUTALISM"
-   Legal docket meets sticker chaos.
+   REDFLAG.GG — "DIGITAL COURTROOM"
 
-   Tailwind v4: design tokens live here in `@theme`, NOT in a
-   tailwind.config.ts (there isn't one). Every token below generates
-   utilities, e.g. --color-flag-red → bg-flag-red / text-flag-red.
+   A late-night verdict feed: black void, neon evidence, chrome type.
+   Reads like a dating app that got angry, not a paper document.
 
-   Design law: a screenshot must read as an OFFICIAL VERDICT at
-   thumbnail size. That means paper, heavy ink, hard shadows, and
-   stamps — never neon, glass, or pastel.
+   Tailwind v4: tokens live here in `@theme`, NOT a tailwind.config.ts
+   (there isn't one). Each token generates utilities, e.g.
+   --color-flag-red → bg-flag-red / text-flag-red / border-flag-red.
+
+   DESIGN LAW — a screenshot must read as a VERDICT at thumbnail size.
+   Here that is achieved with glow and contrast rather than borders:
+   one neon accent dominates the card, and the verdict word is the
+   largest thing on it.
+
+   HARD CONSTRAINTS (this project shares a repo family with a
+   newsprint-styled sibling — these keep them visually distinct):
+     · no paper/manila backgrounds, no black hard-offset shadows
+     · no Anton, no uppercase-by-default headings
+     · no square-by-default geometry, no halftone dot screens
+     · no yellow highlighter
    ═══════════════════════════════════════════════════════════════════ */
 
 @theme {
-  /* ── Surfaces: manila / xerox paper ───────────────────────────── */
-  --color-paper: #f4efe6;
-  --color-paper-dim: #e7dfd0;
-  --color-paper-bright: #fbf8f2;
+  /* ── Surfaces: void → elevated glass ──────────────────────────── */
+  --color-void: #07060c;
+  --color-void-deep: #030209;
+  --color-surface: #12101c;
+  --color-surface-2: #1a1728;
+  --color-surface-3: #241f37;
 
-  /* ── Ink: borders, type, hard shadows ─────────────────────────── */
-  --color-ink: #12100e;
-  --color-ink-soft: #6e665a;
-  --color-ink-faint: #a89e8d;
+  /* ── Hairlines. Light at low alpha, never solid black. ─────────── */
+  --color-line: #2b2642;
+  --color-line-bright: #423a63;
 
-  /* ── Verdict flags ────────────────────────────────────────────── */
-  --color-flag-red: #e4172b;
-  --color-flag-red-lo: #fbd9dc;
-  --color-flag-green: #12a150;
-  --color-flag-green-lo: #d5f0e0;
+  /* ── Type: chalk on void ──────────────────────────────────────── */
+  --color-chalk: #f5f2ff;
+  --color-chalk-dim: #a8a1cc;
+  --color-chalk-faint: #6f688f;
 
-  /* ── Authority accent: the AI judge's ink stamp ───────────────── */
-  --color-judge: #2a1fd6;
-  --color-judge-lo: #dcdafb;
+  /* ── Verdict neons ────────────────────────────────────────────── */
+  /* Red flag = hot magenta. Reads "danger" without being fire-engine. */
+  --color-flag-red: #ff2e7e;
+  --color-flag-red-deep: #4a0722;
+  --color-flag-red-glow: #ff2e7e40;
 
-  /* ── Emphasis ─────────────────────────────────────────────────── */
-  --color-highlighter: #ffe94a;
-  --color-tape: #e3d3a4;
+  /* Green flag = acid lime. Unmistakable at 120px wide. */
+  --color-flag-green: #b4ff39;
+  --color-flag-green-deep: #2b4207;
+  --color-flag-green-glow: #b4ff3940;
+
+  /* ── The judge: electric cyan, the only "authority" colour ────── */
+  --color-judge: #3de0ff;
+  --color-judge-deep: #06384a;
+  --color-judge-glow: #3de0ff40;
+
+  /* ── Pro tier ─────────────────────────────────────────────────── */
+  --color-pro: #9d5cff;
+  --color-pro-deep: #2a0e57;
+
+  /* ── Heat / toxicity ramp ─────────────────────────────────────── */
+  --color-heat: #ffb627;
+  --color-heat-deep: #4a2f00;
 
   /* ── Typography ───────────────────────────────────────────────── */
-  --font-display: var(--font-anton), 'Arial Narrow', system-ui, sans-serif;
-  --font-docket: var(--font-space-mono), ui-monospace, monospace;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  /* Bricolage Grotesque: variable, wide, slightly unhinged. Mixed case. */
+  --font-display: var(--font-bricolage), 'Trebuchet MS', system-ui, sans-serif;
+  /* Azeret Mono for HUD/case numbers — squarer than Space Mono. */
+  --font-hud: var(--font-azeret), ui-monospace, monospace;
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
 
-  /* ── Breakpoint for very small phones ─────────────────────────── */
+  /* ── Geometry: rounded by default, pills for actions ──────────── */
+  --radius-card: 22px;
+  --radius-tile: 14px;
+  --radius-pill: 999px;
+
   --breakpoint-xs: 380px;
 
-  /* ── Motion: all ≤ 350ms. This is a court, not a carnival. ────── */
-  --animate-gavel-slam: gavel-slam 320ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
-  --animate-stamp-in: stamp-in 340ms cubic-bezier(0.16, 1.2, 0.3, 1) both;
-  --animate-rise: rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-bar-fill: bar-fill 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-pulse-live: pulse-live 1.6s ease-in-out infinite;
+  /* ── Motion ───────────────────────────────────────────────────── */
+  --animate-slam: slam 380ms cubic-bezier(0.16, 1.1, 0.3, 1) both;
+  --animate-verdict-in: verdict-in 420ms cubic-bezier(0.16, 1.2, 0.3, 1) both;
+  --animate-rise: rise 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-bar-fill: bar-fill 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-breathe: breathe 2.4s ease-in-out infinite;
+  --animate-scan: scan 2.8s linear infinite;
   --animate-ticker: ticker 32s linear infinite;
+  --animate-shimmer: shimmer 3.5s linear infinite;
 
-  @keyframes gavel-slam {
+  /* Verdict lands by punching in from the screen plane, not rotating. */
+  @keyframes verdict-in {
     0% {
-      transform: rotate(-32deg) translateY(-18px);
+      transform: perspective(600px) translateZ(120px);
       opacity: 0;
-    }
-    60% {
-      transform: rotate(6deg) translateY(0);
-      opacity: 1;
+      filter: blur(6px);
     }
     100% {
-      transform: rotate(0deg) translateY(0);
+      transform: perspective(600px) translateZ(0);
       opacity: 1;
+      filter: blur(0);
     }
   }
 
-  @keyframes stamp-in {
+  @keyframes slam {
     0% {
-      transform: scale(1.7) rotate(-16deg);
+      transform: translateY(-14px) scale(1.04);
       opacity: 0;
     }
     100% {
-      transform: scale(1) rotate(-7deg);
+      transform: translateY(0) scale(1);
       opacity: 1;
     }
   }
 
   @keyframes rise {
     0% {
-      transform: translateY(10px);
+      transform: translateY(14px);
       opacity: 0;
     }
     100% {
@@ -93,20 +126,33 @@
 
   @keyframes bar-fill {
     0% {
-      transform: scaleX(0);
+      clip-path: inset(0 100% 0 0);
     }
     100% {
-      transform: scaleX(1);
+      clip-path: inset(0 0 0 0);
     }
   }
 
-  @keyframes pulse-live {
+  /* Live indicator: a glow that breathes, not an opacity blink. */
+  @keyframes breathe {
     0%,
     100% {
       opacity: 1;
+      box-shadow: 0 0 0 0 currentColor;
     }
     50% {
-      opacity: 0.35;
+      opacity: 0.72;
+      box-shadow: 0 0 0 5px transparent;
+    }
+  }
+
+  /* Sweeping scanline down an open case — "session in progress". */
+  @keyframes scan {
+    0% {
+      transform: translateY(-100%);
+    }
+    100% {
+      transform: translateY(400%);
     }
   }
 
@@ -118,6 +164,16 @@
       transform: translateX(-50%);
     }
   }
+
+  /* Chrome wordmark: light travelling across the gradient. */
+  @keyframes shimmer {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -125,60 +181,63 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 @layer base {
-  * {
-    /* Hard edges are the brand. Opt into radius deliberately. */
-    border-radius: 0;
-  }
-
   html {
     -webkit-text-size-adjust: 100%;
     scrollbar-gutter: stable;
+    /* Dark-first: tells the UA to render form controls and scrollbars dark. */
+    color-scheme: dark;
   }
 
   body {
-    background-color: var(--color-paper);
-    color: var(--color-ink);
+    background-color: var(--color-void);
+    color: var(--color-chalk);
     font-family: var(--font-sans);
     font-size: 15px;
-    line-height: 1.6;
-    /* Paper grain: a faint dot screen + a warm vignette. */
+    line-height: 1.62;
+    min-height: 100dvh;
+    /*
+     * Two bloom pools, magenta and cyan, at the top corners. Fixed so the
+     * lighting stays put while content scrolls under it.
+     */
     background-image:
       radial-gradient(
-        circle at 1px 1px,
-        rgb(18 16 14 / 0.055) 1px,
-        transparent 0
+        ellipse 90% 55% at 12% -8%,
+        rgb(255 46 126 / 0.16),
+        transparent 62%
       ),
       radial-gradient(
-        ellipse 120% 80% at 50% -10%,
-        rgb(227 211 164 / 0.28),
+        ellipse 80% 50% at 92% 2%,
+        rgb(61 224 255 / 0.12),
         transparent 60%
       );
-    background-size:
-      4px 4px,
-      100% 100%;
-    min-height: 100dvh;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
 
-  /* Anton only ever ships uppercase; bake it in. */
+  /*
+   * Display type is mixed-case and tightly tracked. Deliberately NOT
+   * uppercase — that is the sibling project's voice.
+   */
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
-    text-transform: uppercase;
-    letter-spacing: -0.02em;
-    line-height: 0.92;
-    font-weight: 400;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
   }
 
-  /* Focus must be obvious against paper — accessibility, not decoration. */
+  /* Cyan ring with a bloom, so it is visible over neon and over void. */
   :focus-visible {
-    outline: 3px solid var(--color-judge);
-    outline-offset: 2px;
+    outline: 2px solid var(--color-judge);
+    outline-offset: 3px;
+    border-radius: 4px;
+    box-shadow: 0 0 0 6px rgb(61 224 255 / 0.16);
   }
 
   ::selection {
-    background: var(--color-highlighter);
-    color: var(--color-ink);
+    background: rgb(61 224 255 / 0.32);
+    color: var(--color-chalk);
   }
 
   input,
@@ -188,215 +247,369 @@
     font: inherit;
     color: inherit;
   }
+
+  /* Placeholder must stay legible on dark glass. */
+  ::placeholder {
+    color: var(--color-chalk-faint);
+    opacity: 1;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   UTILITIES — the brutalist kit
+   UTILITIES — the glass & neon kit
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Borders & hard shadows ────────────────────────────────────── */
-
-@utility brut {
-  border: 3px solid var(--color-ink);
-}
-
-@utility brut-thin {
-  border: 2px solid var(--color-ink);
-}
-
-@utility brut-shadow {
-  box-shadow: 6px 6px 0 0 var(--color-ink);
-}
-
-@utility brut-shadow-sm {
-  box-shadow: 3px 3px 0 0 var(--color-ink);
-}
-
-@utility brut-shadow-lg {
-  box-shadow: 10px 10px 0 0 var(--color-ink);
-}
-
-@utility brut-shadow-red {
-  box-shadow: 6px 6px 0 0 var(--color-flag-red);
-}
-
-@utility brut-shadow-green {
-  box-shadow: 6px 6px 0 0 var(--color-flag-green);
-}
-
-@utility brut-shadow-judge {
-  box-shadow: 6px 6px 0 0 var(--color-judge);
-}
+/* ── Surfaces ──────────────────────────────────────────────────── */
 
 /*
- * Tactile press: the element physically travels into its own shadow.
- * Used on every primary action — makes voting feel like stamping.
+ * The workhorse card. A 1px light hairline plus an inset top highlight
+ * fakes a lit glass edge; depth comes from a soft black shadow, never a
+ * hard offset one.
  */
-@utility brut-press {
+@utility panel {
+  background: linear-gradient(
+    to bottom,
+    var(--color-surface-2),
+    var(--color-surface)
+  );
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 1px 2px 0 rgb(0 0 0 / 0.6),
+    0 12px 32px -12px rgb(0 0 0 / 0.8);
+}
+
+@utility panel-flat {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-tile);
+}
+
+/* Recessed well — inputs, quoted evidence, code. */
+@utility panel-sunk {
+  background: var(--color-void-deep);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-tile);
+  box-shadow: inset 0 2px 8px 0 rgb(0 0 0 / 0.55);
+}
+
+/* ── Neon edges ────────────────────────────────────────────────── */
+
+/*
+ * `edge-*` tints a panel's border and lays a coloured bloom outside it.
+ * This is how a card announces its verdict without a stamp.
+ */
+@utility edge-red {
+  border-color: rgb(255 46 126 / 0.55);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 0 0 1px rgb(255 46 126 / 0.12),
+    0 0 28px -6px rgb(255 46 126 / 0.45);
+}
+
+@utility edge-green {
+  border-color: rgb(180 255 57 / 0.5);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 0 0 1px rgb(180 255 57 / 0.12),
+    0 0 28px -6px rgb(180 255 57 / 0.4);
+}
+
+@utility edge-judge {
+  border-color: rgb(61 224 255 / 0.5);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 0 0 1px rgb(61 224 255 / 0.12),
+    0 0 28px -6px rgb(61 224 255 / 0.4);
+}
+
+@utility edge-pro {
+  border-color: rgb(157 92 255 / 0.5);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 0 28px -6px rgb(157 92 255 / 0.45);
+}
+
+/* Text bloom. Small doses only — glowing body copy is unreadable. */
+@utility glow-red {
+  text-shadow: 0 0 18px rgb(255 46 126 / 0.65);
+}
+
+@utility glow-green {
+  text-shadow: 0 0 18px rgb(180 255 57 / 0.6);
+}
+
+@utility glow-judge {
+  text-shadow: 0 0 18px rgb(61 224 255 / 0.6);
+}
+
+/* ── Chrome type ───────────────────────────────────────────────── */
+
+/*
+ * Brushed-metal fill for the wordmark and verdict words. Needs a
+ * background-clip fallback colour or the text vanishes where unsupported.
+ */
+@utility chrome {
+  color: var(--color-chalk);
+
+  @supports (-webkit-background-clip: text) or (background-clip: text) {
+    background: linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #cfc9f0 32%,
+      #7d76a8 52%,
+      #ffffff 68%,
+      #b9b2dd 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* Fine dark keyline so chrome does not dissolve into the void. */
+    -webkit-text-stroke: 0.6px rgb(0 0 0 / 0.35);
+  }
+}
+
+@utility chrome-live {
+  background-size: 200% auto;
+  animation: var(--animate-shimmer);
+}
+
+/* ── Actions ───────────────────────────────────────────────────── */
+
+/*
+ * Pill button base. Geometry is the main departure from the sibling
+ * project, so it is deliberately fully rounded.
+ */
+@utility pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  border-radius: var(--radius-pill);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
   transition:
-    transform 110ms ease-out,
-    box-shadow 110ms ease-out;
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 140ms ease-out,
+    filter 140ms ease-out;
 
   &:active {
-    transform: translate(3px, 3px);
-    box-shadow: 0 0 0 0 var(--color-ink);
+    /* Compress, do not translate — translation is the sibling's press. */
+    transform: scale(0.96);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    filter: saturate(0.4);
   }
 }
 
-@utility brut-hover-lift {
-  transition:
-    transform 140ms ease-out,
-    box-shadow 140ms ease-out;
+/* Filled neon action: solid colour, dark text, coloured bloom beneath. */
+@utility pill-red {
+  background: var(--color-flag-red);
+  color: #1a0009;
+  box-shadow: 0 6px 24px -6px rgb(255 46 126 / 0.75);
 
-  &:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 8px 8px 0 0 var(--color-ink);
+  &:hover:not(:disabled) {
+    box-shadow: 0 10px 30px -6px rgb(255 46 126 / 0.9);
+    filter: brightness(1.08);
   }
 }
 
-/* ── Rubber-ink stamp ──────────────────────────────────────────── */
+@utility pill-green {
+  background: var(--color-flag-green);
+  color: #101a00;
+  box-shadow: 0 6px 24px -6px rgb(180 255 57 / 0.7);
 
-/*
- * The verdict stamp. Double dashed border + rotation + letterpress
- * shadow so it reads as physically pressed onto the page.
- */
-@utility stamp {
+  &:hover:not(:disabled) {
+    box-shadow: 0 10px 30px -6px rgb(180 255 57 / 0.85);
+    filter: brightness(1.08);
+  }
+}
+
+@utility pill-judge {
+  background: var(--color-judge);
+  color: #001820;
+  box-shadow: 0 6px 24px -6px rgb(61 224 255 / 0.7);
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 10px 30px -6px rgb(61 224 255 / 0.85);
+    filter: brightness(1.08);
+  }
+}
+
+/* Glass action — secondary weight. */
+@utility pill-glass {
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid var(--color-line-bright);
+  color: var(--color-chalk);
+  backdrop-filter: blur(12px);
+
+  &:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.1);
+    border-color: var(--color-judge);
+  }
+}
+
+@utility pill-ghost {
+  background: transparent;
+  color: var(--color-chalk-dim);
+
+  &:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.06);
+    color: var(--color-chalk);
+  }
+}
+
+/* ── HUD chrome ────────────────────────────────────────────────── */
+
+/* Monospace metadata voice: case numbers, timers, counts. */
+@utility hud {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-chalk-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Small rounded tag. Replaces the sibling's masking tape entirely. */
+@utility chip {
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
-  padding: 0.35em 0.7em;
-  border: 3px double currentColor;
-  font-family: var(--font-docket);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  transform: rotate(-7deg);
-  opacity: 0.88;
-  text-shadow: 1px 1px 0 rgb(255 255 255 / 0.4);
-}
-
-@utility stamp-straight {
-  transform: rotate(0deg);
-}
-
-/* ── Masking tape (category tags) ──────────────────────────────── */
-
-@utility tape {
-  position: relative;
-  display: inline-block;
-  padding: 0.25em 0.85em;
-  background: var(--color-tape);
-  border-left: 1px dashed rgb(18 16 14 / 0.28);
-  border-right: 1px dashed rgb(18 16 14 / 0.28);
-  font-family: var(--font-docket);
-  font-size: 11px;
-  font-weight: 700;
+  padding: 0.3em 0.75em;
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid var(--color-line);
+  font-family: var(--font-hud);
+  font-size: 10px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  box-shadow: 0 1px 0 rgb(18 16 14 / 0.12);
-  transform: rotate(-1.5deg);
+  color: var(--color-chalk-dim);
 }
 
-/* ── Docket chrome ─────────────────────────────────────────────── */
-
-@utility docket-label {
-  font-family: var(--font-docket);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--color-ink-soft);
+@utility chip-red {
+  background: rgb(255 46 126 / 0.14);
+  border-color: rgb(255 46 126 / 0.4);
+  color: var(--color-flag-red);
 }
 
-@utility docket-rule {
-  border-top: 2px dashed rgb(18 16 14 / 0.28);
+@utility chip-green {
+  background: rgb(180 255 57 / 0.13);
+  border-color: rgb(180 255 57 / 0.38);
+  color: var(--color-flag-green);
 }
 
-/* Xerox halftone overlay for card texture. */
-@utility halftone {
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image: repeating-radial-gradient(
-      circle at 0 0,
-      transparent 0,
-      rgb(18 16 14 / 0.06) 1px,
-      transparent 2px
-    );
-    background-size: 5px 5px;
-  }
+@utility chip-judge {
+  background: rgb(61 224 255 / 0.13);
+  border-color: rgb(61 224 255 / 0.38);
+  color: var(--color-judge);
 }
 
-/* Redaction bar for auto-stripped PII. */
+@utility chip-heat {
+  background: rgb(255 182 39 / 0.14);
+  border-color: rgb(255 182 39 / 0.4);
+  color: var(--color-heat);
+}
+
+@utility chip-pro {
+  background: rgb(157 92 255 / 0.16);
+  border-color: rgb(157 92 255 / 0.45);
+  color: #c9a6ff;
+}
+
+/* Hairline divider. 1px gradient that fades at both ends. */
+@utility hairline {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-line-bright) 18%,
+    var(--color-line-bright) 82%,
+    transparent
+  );
+}
+
+/* ── Devices ───────────────────────────────────────────────────── */
+
+/*
+ * Redaction: a blurred neon bar rather than a solid black block, so it
+ * reads as digitally scrubbed instead of marker-penned.
+ */
 @utility redact {
-  background: var(--color-ink);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-3),
+    var(--color-surface-2)
+  );
   color: transparent;
   user-select: none;
-  padding: 0 0.3em;
-  border-radius: 1px;
+  padding: 0 0.35em;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--color-line-bright);
 }
 
-/* Marker highlight behind inline text. */
-@utility marker {
+/* Cyan underline sweep for emphasis. Replaces the yellow highlighter. */
+@utility underglow {
+  background-image: linear-gradient(
+    to right,
+    var(--color-judge),
+    var(--color-flag-red)
+  );
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 2px;
+  padding-bottom: 0.06em;
+}
+
+/* Scanline strip for live cases. Parent needs relative + overflow-hidden. */
+@utility scanline {
+  position: absolute;
+  inset-inline: 0;
+  height: 28%;
+  pointer-events: none;
   background: linear-gradient(
     to bottom,
-    transparent 12%,
-    var(--color-highlighter) 12%,
-    var(--color-highlighter) 88%,
-    transparent 88%
+    transparent,
+    rgb(61 224 255 / 0.07),
+    transparent
   );
-  padding: 0 0.15em;
+  animation: var(--animate-scan);
 }
 
-/* ── Layout helpers ────────────────────────────────────────────── */
+/* Fine grid, for the docket backdrop. Not a dot screen. */
+@utility gridlines {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ── Layout ────────────────────────────────────────────────────── */
 
 @utility court-container {
   width: 100%;
-  max-width: 42.5rem; /* 680px — single-column docket */
+  max-width: 40rem; /* 640px single-column feed */
   margin-inline: auto;
   padding-inline: 1rem;
 }
 
 @utility court-container-wide {
   width: 100%;
-  max-width: 64rem;
+  max-width: 66rem;
   margin-inline: auto;
   padding-inline: 1rem;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   RESPONSIVE — heavier borders on larger screens
-   ═══════════════════════════════════════════════════════════════════ */
-
-@media (min-width: 640px) {
-  .brut {
-    border-width: 4px;
-  }
-}
-
-/* Sub-380px safety: keep the two-button jury box from overflowing. */
-@media (max-width: 379px) {
-  .brut,
-  .brut-thin {
-    border-width: 2px;
-  }
-
-  .brut-shadow,
-  .brut-shadow-red,
-  .brut-shadow-green,
-  .brut-shadow-judge {
-    box-shadow: 4px 4px 0 0 currentColor;
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
    ACCESSIBILITY — reduced motion
-   Honours the OS setting AND a manual toggle (html.reduce-motion),
-   mirroring the Framer Motion <MotionConfig reducedMotion> provider.
+   Honours the OS setting AND a manual toggle (html.reduce-motion).
    ═══════════════════════════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -418,41 +631,92 @@ html.reduce-motion *::after {
   transition-duration: 0.01ms !important;
 }
 
-/* Reduced motion must not freeze a stamp mid-flight at scale(1.7). */
+/*
+ * Reduced motion must not strand the verdict mid-flight, blurred and
+ * pushed 120px toward the viewer. Force the resting state.
+ */
 @media (prefers-reduced-motion: reduce) {
-  .animate-stamp-in {
-    transform: rotate(-7deg) !important;
+  .animate-verdict-in {
+    transform: none !important;
     opacity: 1 !important;
+    filter: none !important;
   }
 }
 
+html.reduce-motion .animate-verdict-in {
+  transform: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* An infinitely scanning strip is exactly what this setting is for. */
+@media (prefers-reduced-motion: reduce) {
+  .scanline {
+    display: none !important;
+  }
+}
+
+html.reduce-motion .scanline {
+  display: none !important;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
-   SCROLLBAR — ink on paper
+   SCROLLBAR — thin neon pill
    ═══════════════════════════════════════════════════════════════════ */
 
 @supports selector(::-webkit-scrollbar) {
   ::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--color-paper-dim);
+    background: var(--color-void-deep);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-ink);
-    border: 3px solid var(--color-paper-dim);
+    background: var(--color-line-bright);
+    border-radius: var(--radius-pill);
+    border: 2px solid var(--color-void-deep);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-judge);
+  }
+}
+
+/* Firefox has no pseudo-elements for this; use the standard property. */
+@supports (scrollbar-color: auto) {
+  html {
+    scrollbar-color: var(--color-line-bright) var(--color-void-deep);
+    scrollbar-width: thin;
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PRINT — it's a court document, let people print it
+   PRINT — invert to ink-on-white so a printed verdict is legible
    ═══════════════════════════════════════════════════════════════════ */
 
 @media print {
   body {
     background: #fff;
+    color: #000;
+    background-image: none;
+  }
+
+  .panel,
+  .panel-flat,
+  .panel-sunk {
+    background: #fff;
+    border: 1px solid #000;
+    box-shadow: none;
+  }
+
+  .chrome {
+    background: none;
+    color: #000;
+    -webkit-text-fill-color: #000;
+    -webkit-text-stroke: 0;
   }
 
   .no-print {

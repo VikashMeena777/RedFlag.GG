@@ -39,13 +39,12 @@ describe('voteSplit', () => {
 });
 
 describe('formatCaseNo', () => {
-  it('zero-pads to six digits', () => {
-    expect(formatCaseNo(1)).toBe('RF-000001');
-    expect(formatCaseNo(123)).toBe('RF-000123');
+  it('passes through an already-canonical public id', () => {
+    expect(formatCaseNo('CASE-7421')).toBe('CASE-7421');
   });
 
-  it('does not truncate numbers beyond six digits', () => {
-    expect(formatCaseNo(1_234_567)).toBe('RF-1234567');
+  it('normalises casing and trims surrounding whitespace', () => {
+    expect(formatCaseNo('  case-4310  ')).toBe('CASE-4310');
   });
 });
 
@@ -134,12 +133,16 @@ describe('properties', () => {
     expect(split.green).toBeLessThanOrEqual(100);
   });
 
-  test.prop([fc.integer({ min: 1, max: 999_999 })])(
-    'case numbers are always 9 characters',
+  test.prop([fc.integer({ min: 1, max: 9_999_999 })])(
+    'formatCaseNo round-trips a generated public id',
     (n) => {
-      expect(formatCaseNo(n)).toHaveLength(9);
+      expect(formatCaseNo(`CASE-${n}`)).toBe(`CASE-${n}`);
     }
   );
+
+  test.prop([fc.string()])('formatCaseNo never throws', (s) => {
+    expect(() => formatCaseNo(s)).not.toThrow();
+  });
 
   test.prop([fc.string(), fc.integer({ min: 5, max: 200 })])(
     'excerpt never exceeds the limit by more than the ellipsis',

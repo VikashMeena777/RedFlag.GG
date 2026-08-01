@@ -3,20 +3,21 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Share2, Download, Link2, Check } from 'lucide-react';
-import { BrutButton } from '@/components/ui/brut';
+import { NeonButton } from '@/components/ui/neon';
 
 /**
  * Share controls.
  *
  * Sits outside the card frame so it never appears in a screenshot of the verdict.
- * Three escalating options: native share sheet where available (mobile, the main
- * case), a PNG download for stories, and copy-link as the universal fallback.
+ * Three escalating options: the native share sheet where available (mobile, the
+ * main case), a PNG download for stories, and copy-link as the universal fallback.
  */
 export function ShareRow({
-  slug,
+  caseId,
   headline,
 }: {
-  slug: string;
+  /** `public_id`, e.g. "CASE-7421". */
+  caseId: string;
   headline: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -24,19 +25,15 @@ export function ShareRow({
 
   const url =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/case/${slug}`
-      : `/case/${slug}`;
+      ? `${window.location.origin}/case/${caseId}`
+      : `/case/${caseId}`;
 
   const canNativeShare =
     typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   async function nativeShare() {
     try {
-      await navigator.share({
-        title: 'RedFlag.GG verdict',
-        text: headline,
-        url,
-      });
+      await navigator.share({ title: 'RedFlag.gg verdict', text: headline, url });
     } catch (error) {
       // AbortError is the user dismissing the sheet — not a failure.
       if ((error as Error)?.name !== 'AbortError') {
@@ -59,7 +56,7 @@ export function ShareRow({
   async function downloadCard() {
     setDownloading(true);
     try {
-      const response = await fetch(`/api/card/${slug}`);
+      const response = await fetch(`/api/card/${caseId}`);
       if (!response.ok) {
         toast.error(
           response.status === 429
@@ -72,7 +69,7 @@ export function ShareRow({
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = `redflag-${slug}.png`;
+      link.download = `redflag-${caseId.toLowerCase()}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -86,32 +83,32 @@ export function ShareRow({
   }
 
   return (
-    <div className="no-print flex flex-wrap gap-2">
+    <div className="no-print flex flex-wrap gap-2.5">
       {canNativeShare && (
-        <BrutButton variant="ink" onClick={nativeShare}>
-          <Share2 className="size-4" strokeWidth={2.75} aria-hidden />
+        <NeonButton variant="red" onClick={nativeShare}>
+          <Share2 className="size-4" strokeWidth={2.25} aria-hidden />
           Share
-        </BrutButton>
+        </NeonButton>
       )}
 
-      <BrutButton
+      <NeonButton
         variant="judge"
         onClick={downloadCard}
         disabled={downloading}
         aria-busy={downloading}
       >
-        <Download className="size-4" strokeWidth={2.75} aria-hidden />
+        <Download className="size-4" strokeWidth={2.25} aria-hidden />
         {downloading ? 'Saving…' : 'Save card'}
-      </BrutButton>
+      </NeonButton>
 
-      <BrutButton variant="ghost" onClick={copyLink}>
+      <NeonButton variant="glass" onClick={copyLink}>
         {copied ? (
-          <Check className="size-4" strokeWidth={2.75} aria-hidden />
+          <Check className="size-4" strokeWidth={2.5} aria-hidden />
         ) : (
-          <Link2 className="size-4" strokeWidth={2.75} aria-hidden />
+          <Link2 className="size-4" strokeWidth={2.25} aria-hidden />
         )}
         {copied ? 'Copied' : 'Copy link'}
-      </BrutButton>
+      </NeonButton>
     </div>
   );
 }
