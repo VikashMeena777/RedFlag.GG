@@ -1,4 +1,3 @@
-import { JurorProvider } from '@/components/providers/juror-provider';
 import { CourtHeader, CourtFooter } from '@/components/court/chrome';
 
 export default function AccountLayout({
@@ -8,7 +7,6 @@ export default function AccountLayout({
 }) {
   return (
     <>
-      <JurorProvider />
       <CourtHeader />
       <main className="min-h-[60vh]">{children}</main>
       <CourtFooter />
