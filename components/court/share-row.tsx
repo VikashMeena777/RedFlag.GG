@@ -1,9 +1,42 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { Share2, Download, Link2, Check } from 'lucide-react';
 import { NeonButton } from '@/components/ui/neon';
+
+/**
+ * Whether this browser can open a native share sheet.
+ *
+ * `useSyncExternalStore` rather than an effect, because this is exactly what it
+ * is for: reading a value that differs between server and client without causing
+ * a hydration mismatch. The server snapshot returns `false`, so SSR and the first
+ * client render agree; React then re-reads the client snapshot and reveals the
+ * button. An effect achieved the same result but triggered a cascading render,
+ * which the React lint rule flags.
+ *
+ * `subscribe` is a no-op: `navigator.share` never changes for the life of a page.
+ */
+const noopSubscribe = () => () => {};
+
+function useCanNativeShare(): boolean {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => typeof navigator !== 'undefined' && typeof navigator.share === 'function',
+    () => false
+  );
+}
+
+/** Absolute URL for sharing, resolved the same hydration-safe way. */
+function useShareUrl(caseId: string): string {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => `${window.location.origin}/case/${caseId}`,
+    // Server snapshot: a relative path. Never surfaced to the user, because the
+    // buttons that use it only act after hydration.
+    () => `/case/${caseId}`
+  );
+}
 
 /**
  * Share controls.
@@ -24,23 +57,15 @@ export function ShareRow({
   const [downloading, setDownloading] = useState(false);
 
   /*
-   * Both of these depend on browser APIs, so they must NOT be read during render.
+   * Both depend on browser APIs, so neither may be read during render.
    *
-   * Doing so caused a real hydration mismatch (React #418): the server has no
-   * `navigator`, so the Share button was absent from the SSR HTML, but Chromium
-   * exposes `navigator.share`, so the client's first render included it. React
-   * then found a tree it did not expect and discarded the server markup.
-   *
-   * Deferring to an effect means the first client render matches the server
-   * exactly, and the button appears once hydration is complete.
+   * Reading them directly caused a real hydration mismatch (React #418): the
+   * server has no `navigator`, so the Share button was absent from the SSR HTML,
+   * but Chromium exposes `navigator.share`, so the client's first render included
+   * it. React found a tree it did not expect and discarded the server markup.
    */
-  const [canNativeShare, setCanNativeShare] = useState(false);
-  const [url, setUrl] = useState(`/case/${caseId}`);
-
-  useEffect(() => {
-    setUrl(`${window.location.origin}/case/${caseId}`);
-    setCanNativeShare(typeof navigator.share === 'function');
-  }, [caseId]);
+  const canNativeShare = useCanNativeShare();
+  const url = useShareUrl(caseId);
 
   async function nativeShare() {
     try {

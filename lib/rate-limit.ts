@@ -6,10 +6,20 @@ import { serverEnv } from '@/lib/env';
 /**
  * Rate limiting.
  *
- * Deliberately **fails closed** on write paths. If Upstash is unreachable we
- * reject the write rather than waving it through, because an outage is exactly
- * when an abuse wave is cheapest to run. Read-only paths (share cards) fail
- * open, since blocking them only breaks link previews.
+ * Three distinct states, and conflating the first two caused a real outage:
+ *
+ *  1. **Never configured** (no `UPSTASH_*` env vars) → allow, and warn once per
+ *     limit. This is a misconfiguration, not an attack. Previously this failed
+ *     closed in production, which silently disabled signup: `auth:otp` rejected
+ *     every request before it reached Supabase and the user got an error page.
+ *  2. **Configured but failing** (network error, throw) → fail closed on
+ *     client-reachable write paths, because an outage is exactly when an abuse
+ *     wave is cheapest to run. This is the case the fail-closed rule is *for*.
+ *  3. **Working and over budget** → reject with a retry hint.
+ *
+ * Read-only paths (share cards) and trusted server-side work (`verdict:global`)
+ * fail open in state 2 as well, since blocking them takes a feature offline
+ * rather than merely slowing an attacker down.
  */
 
 let redis: Redis | null | undefined;
@@ -70,6 +80,25 @@ const LIMITS: Record<LimitName, LimitSpec> = {
 
 const limiters = new Map<LimitName, Ratelimit>();
 
+/**
+ * Tracks which limits have already warned, so an unconfigured deployment logs
+ * once per limit instead of once per request.
+ */
+const warned = new Set<LimitName>();
+
+function warnUnconfigured(name: LimitName): void {
+  if (warned.has(name)) return;
+  warned.add(name);
+
+  const where = serverEnv.isProduction
+    ? 'PRODUCTION — set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in your hosting environment'
+    : 'set UPSTASH_* in .env.local to exercise real throttling';
+
+  console.warn(
+    `[rate-limit] Upstash not configured; "${name}" is NOT enforced (${where}).`
+  );
+}
+
 function getLimiter(name: LimitName): Ratelimit | null {
   const client = getRedis();
   if (!client) return null;
@@ -112,18 +141,23 @@ export async function checkLimit(
   const limiter = getLimiter(name);
   const spec = LIMITS[name];
 
+  /*
+   * Upstash is not configured at all.
+   *
+   * This is a *misconfiguration*, not an attack, and the two cases must be
+   * distinguished. Treating "no limiter exists" the same as "the limiter said no"
+   * meant that deploying without UPSTASH_* silently disabled signup entirely:
+   * `auth:otp` fails closed, so `requestVerification` rejected every request
+   * before it ever reached Supabase, and the user saw a generic error page.
+   *
+   * A never-configured limiter therefore allows the request and logs loudly.
+   * Deliberate fail-closed behaviour is preserved for the case that actually
+   * matters — a configured limiter that is failing or throwing (see the catch
+   * below), which is the real "outage during an abuse wave" scenario.
+   */
   if (!limiter) {
-    if (spec.failOpen) {
-      return { ok: true, remaining: 0, retryAfter: 0, degraded: true };
-    }
-    if (!serverEnv.isProduction) {
-      // Local dev without Upstash: allow, but make the gap obvious.
-      console.warn(
-        `[rate-limit] Upstash not configured; "${name}" not enforced. Set UPSTASH_* in .env.local.`
-      );
-      return { ok: true, remaining: 0, retryAfter: 0, degraded: true };
-    }
-    return { ok: false, remaining: 0, retryAfter: 60, degraded: true };
+    warnUnconfigured(name);
+    return { ok: true, remaining: 0, retryAfter: 0, degraded: true };
   }
 
   try {
