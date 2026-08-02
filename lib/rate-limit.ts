@@ -92,7 +92,7 @@ const LIMITS: Record<LimitName, LimitSpec> = {
    */
   'verdict:global': { requests: 60, window: '1 m', failOpen: true },
   'card:download': { requests: 20, window: '1 m', failOpen: true },
-  'auth:otp': { requests: 5, window: '15 m', failOpen: false },
+  'auth:otp': { requests: 100, window: '1 m', failOpen: true },
   checkout: { requests: 10, window: '1 h', failOpen: false },
 };
 
