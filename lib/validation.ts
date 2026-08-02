@@ -107,7 +107,8 @@ export const emailSchema = z
  * Disposable-email domains.
  *
  * Not exhaustive — it cannot be — but it raises the cost of minting throwaway
- * verified accounts. Combined with OTP (the address must actually receive mail)
+ * verified accounts. Combined with the emailed link (the address must actually
+ * receive mail)
  * and the 10-minute filing cooldown, casual abuse gets expensive.
  */
 const DISPOSABLE_DOMAINS = new Set([
@@ -152,13 +153,13 @@ export const signInSchema = z.object({
   }),
 });
 
-export const verifyOtpSchema = z.object({
-  email: emailSchema,
-  token: z
-    .string()
-    .trim()
-    .regex(/^\d{6}$/, 'Enter the 6-digit code.'),
-});
+/*
+ * There is deliberately no `verifyOtpSchema`.
+ *
+ * Verification is magic-link only. The 6-digit code flow was removed because it
+ * required the Supabase email template to contain `{{ .Token }}`, which is not
+ * the default — users received a link while the UI demanded a code.
+ */
 
 /** Flattens a ZodError into `{ field: message }` for form rendering. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {

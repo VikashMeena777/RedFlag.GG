@@ -8,7 +8,9 @@ export default function manifest(): MetadataRoute.Manifest {
       'File your dating drama. The jury votes. The AI judge delivers the verdict.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#F4EFE6',
-    theme_color: '#F4EFE6',
+    // Must track --color-page in globals.css. The old #F4EFE6 belonged to the
+    // retired brutalist theme; the shipped editorial paper is #FBFAF7.
+    background_color: '#FBFAF7',
+    theme_color: '#FBFAF7',
   };
 }

@@ -57,8 +57,8 @@ export function SubscribeButton() {
       </label>
 
       <div className="flex items-stretch gap-2">
-        <span className="panel-sunk flex items-center gap-1.5 px-3.5 font-hud text-sm font-medium text-chalk-dim">
-          <Smartphone className="size-4" strokeWidth={2.25} aria-hidden />
+        <span className="panel-sunk flex items-center gap-1.5 px-3.5 text-sm font-medium tabular-nums text-ink-muted">
+          <Smartphone className="size-4" strokeWidth={2} aria-hidden />
           +91
         </span>
         <input
@@ -75,28 +75,28 @@ export function SubscribeButton() {
           placeholder="9876543210"
           aria-invalid={Boolean(errors.phone)}
           aria-describedby={errors.phone ? 'phone-error' : undefined}
-          className="panel-sunk w-full p-3.5 font-hud text-base tracking-[0.08em] text-chalk outline-none transition-colors focus:border-judge"
+          className="panel-sunk w-full p-3.5 text-base tabular-nums tracking-[0.04em] text-ink outline-none transition-colors focus:border-verdict-split"
         />
       </div>
 
       {errors.phone && (
-        <p id="phone-error" className="text-xs font-medium text-flag-red">
+        <p id="phone-error" className="text-xs font-medium text-verdict-red">
           {errors.phone}
         </p>
       )}
 
       <NeonButton
         type="submit"
-        variant="judge"
+        variant="ink"
         disabled={isPending || phone.length !== 10}
       >
-        <Crown className="size-4" strokeWidth={2.25} aria-hidden />
+        <Crown className="size-4" strokeWidth={2} aria-hidden />
         {isPending
           ? 'Opening checkout…'
           : `Upgrade — \u20B9${PRO_PRICE_INR}/month`}
       </NeonButton>
 
-      <p className="text-xs leading-relaxed text-chalk-faint">
+      <p className="text-xs leading-relaxed text-ink-faint">
         UPI, card, or net banking mandate via Cashfree. Cancel anytime from this
         page. A &#8377;1 authorisation is charged and refunded automatically.
       </p>

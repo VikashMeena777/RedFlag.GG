@@ -40,18 +40,18 @@ export default async function FileCasePage() {
   return (
     <div className="court-container py-10 sm:py-14">
       <p className="hud">New filing</p>
-      <h1 className="mt-3 font-display text-[clamp(2.2rem,10vw,3.4rem)] font-extrabold leading-[0.95] tracking-[-0.05em]">
-        <span className="chrome">State your</span>{' '}
-        <span className="text-flag-red glow-red">case</span>
+      <h1 className="mt-3 font-display text-[clamp(2.2rem,10vw,3.4rem)] font-semibold leading-[1.02] tracking-[-0.03em]">
+        <span className="text-ink">State your</span>{' '}
+        <span className="text-verdict-red">case</span>
       </h1>
-      <p className="mt-4 max-w-md text-[15px] leading-relaxed text-chalk-dim">
+      <p className="mt-4 max-w-md font-read text-[17px] leading-relaxed text-ink-muted">
         Your name is never shown. Write it like you are telling a friend, then
         let the jury decide.
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Chip tone="green">
-          <ShieldCheck className="size-3" strokeWidth={2.5} aria-hidden />
+          <ShieldCheck className="size-3" strokeWidth={2} aria-hidden />
           Verified filer
         </Chip>
         <Chip tone={Number.isFinite(dailyLimit) ? 'neutral' : 'pro'}>
@@ -77,20 +77,20 @@ function VerificationWall({ reason }: { reason: FileBlockedReason | null }) {
 
   return (
     <Panel className="p-7 sm:p-9">
-      <span className="flex size-14 items-center justify-center rounded-full bg-surface-3">
-        <Lock className="size-6 text-chalk-faint" strokeWidth={2} aria-hidden />
+      <span className="flex size-14 items-center justify-center rounded-[3px] bg-wash">
+        <Lock className="size-6 text-ink-faint" strokeWidth={2} aria-hidden />
       </span>
 
-      <h1 className="mt-6 font-display text-[clamp(1.8rem,7vw,2.4rem)] font-extrabold leading-[0.98] tracking-[-0.045em] text-chalk">
+      <h1 className="mt-6 font-display text-[clamp(1.8rem,7vw,2.4rem)] font-semibold leading-[1.04] tracking-[-0.03em] text-ink">
         Verify to file
       </h1>
 
-      <p className="mt-4 text-[15px] leading-relaxed text-chalk">{message}</p>
+      <p className="mt-4 font-read text-[17px] leading-relaxed text-ink">{message}</p>
 
       {/* The reasoning, not just the rule — an unexplained wall reads as a
           growth tactic. */}
-      <div className="mt-6 border-l-2 border-judge/60 pl-4">
-        <p className="text-sm leading-relaxed text-chalk-dim">
+      <div className="mt-6 border-l-2 border-verdict-split/60 pl-4">
+        <p className="font-read text-[15px] leading-relaxed text-ink-muted">
           Voting stays anonymous and always will. Filing is different: these
           stories are about real people who never agreed to appear here, so the
           court keeps a record of who filed what. Your identity is never shown to
@@ -100,14 +100,17 @@ function VerificationWall({ reason }: { reason: FileBlockedReason | null }) {
 
       {isFixable && (
         <Link href="/account" className="pill pill-red mt-7 px-5 py-3 text-sm">
-          <ShieldCheck className="size-4" strokeWidth={2.5} aria-hidden />
+          <ShieldCheck className="size-4" strokeWidth={2} aria-hidden />
           Verify my account
         </Link>
       )}
 
-      <p className="mt-6 text-xs text-chalk-faint">
+      <p className="mt-6 text-xs text-ink-faint">
         Want to keep browsing?{' '}
-        <Link href="/" className="text-judge underline-offset-4 hover:underline">
+        <Link
+          href="/"
+          className="text-verdict-split underline-offset-4 hover:underline"
+        >
           Back to the docket
         </Link>
       </p>

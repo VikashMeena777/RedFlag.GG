@@ -29,23 +29,24 @@ test.describe('the docket', () => {
     await expect(page.locator('main')).toBeVisible();
   });
 
-  test('applies the digital courtroom palette', async ({ page }) => {
+  test('applies the editorial "record" palette', async ({ page }) => {
     await page.goto('/');
     const bg = await page.evaluate(
       () => getComputedStyle(document.body).backgroundColor
     );
-    // --color-void #07060C. A wrong value here means the @theme block broke.
-    expect(bg).toBe('rgb(7, 6, 12)');
+    // --color-page #FBFAF7 (warm paper). A wrong value here means the @theme
+    // block broke or the wrong design system got shipped.
+    expect(bg).toBe('rgb(251, 250, 247)');
   });
 
   /*
-   * Asserts the display face is loaded, not merely requested.
+   * Asserts the display serif is loaded, not merely requested.
    *
    * `fontFamily` reports the declared stack, so it would pass even if the webfont
-   * never arrived and the browser fell back. `document.fonts.check` reports actual
-   * availability, which is what a broken next/font wiring would break.
+   * never arrived and the browser fell back to Georgia. `document.fonts.check`
+   * reports actual availability, which is what a broken next/font wiring breaks.
    */
-  test('loads the display typeface', async ({ page }) => {
+  test('loads the Fraunces display serif', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => document.fonts.ready);
 
@@ -53,22 +54,22 @@ test.describe('the docket', () => {
       .getByRole('heading', { level: 1 })
       .first()
       .evaluate((el) => getComputedStyle(el).fontFamily);
-    expect(family.toLowerCase()).toContain('bricolage');
+    expect(family.toLowerCase()).toContain('fraunces');
 
+    // Fraunces is loaded as a variable font (weight axis), so check a mid weight.
     const loaded = await page.evaluate(() =>
-      document.fonts.check('800 1rem "Bricolage Grotesque"')
+      document.fonts.check('600 1rem "Fraunces"')
     );
     expect(loaded).toBe(true);
   });
 
   /*
-   * The sibling newsprint project owns paper/ink/Anton/hard-offset shadows. These
-   * two products must not converge again, so the boundary is asserted rather than
-   * left to reviewer memory.
+   * The two rejected directions — dark-neon and paper/ink brutalism — must not
+   * leak back in. This asserts the editorial tokens are present and the retired
+   * ones are gone, so a stray copy-paste from an old branch fails CI rather than
+   * review.
    */
-  test('does not regress toward the sibling newsprint system', async ({
-    page,
-  }) => {
+  test('does not regress toward a retired design system', async ({ page }) => {
     await page.goto('/');
 
     const audit = await page.evaluate(() => {
@@ -76,10 +77,9 @@ test.describe('the docket', () => {
       const token = (name: string) => root.getPropertyValue(name).trim();
 
       /*
-       * The sibling's signature is a *displaced* shadow with no blur, e.g.
-       * `6px 6px 0 0`. The offset must be non-zero: `0px 0px 0px 0px` is not an
-       * offset shadow, and WebKit reports exactly that for the LiveDot breathe
-       * animation mid-keyframe, which produced a false positive here.
+       * A *displaced* zero-blur shadow (`6px 6px 0 0`) is the brutalist
+       * signature. The offset must be non-zero: `0px 0px 0px 0px` is not an
+       * offset shadow, so it is excluded to avoid false positives.
        */
       const hardShadows = [...document.querySelectorAll('*')].filter((el) => {
         const match = /^rgba?\([^)]*\)\s+(-?\d+)px\s+(-?\d+)px\s+0px\s+0px$/.exec(
@@ -91,17 +91,25 @@ test.describe('the docket', () => {
       }).length;
 
       return {
-        paperToken: token('--color-paper'),
-        inkToken: token('--color-ink'),
+        // Current editorial tokens — must exist.
+        pageToken: token('--color-page'),
+        verdictRedToken: token('--color-verdict-red'),
+        // Retired tokens from the two previous systems — must be gone.
         voidToken: token('--color-void'),
+        chalkToken: token('--color-chalk'),
+        paperBrutalistToken: token('--color-paper'),
         hardShadows,
       };
     });
 
-    // The retired paper/ink tokens must be gone, not merely unused.
-    expect(audit.paperToken).toBe('');
-    expect(audit.inkToken).toBe('');
-    expect(audit.voidToken).not.toBe('');
+    // Editorial system present.
+    expect(audit.pageToken).toBe('#fbfaf7');
+    expect(audit.verdictRedToken).toBe('#b3202b');
+    // Neither retired system's signature tokens survive.
+    expect(audit.voidToken).toBe('');
+    expect(audit.chalkToken).toBe('');
+    expect(audit.paperBrutalistToken).toBe('');
+    // No hard offset shadows anywhere.
     expect(audit.hardShadows).toBe(0);
   });
 });
@@ -110,7 +118,7 @@ test.describe('navigation', () => {
   test('reaches the toxic docket', async ({ page }) => {
     await page.goto('/docket');
     await expect(
-      page.getByRole('heading', { level: 1, name: /MOST TOXIC/i })
+      page.getByRole('heading', { level: 1, name: /most toxic/i })
     ).toBeVisible();
   });
 
@@ -248,7 +256,7 @@ test.describe('metadata and crawlers', () => {
     expect(response.status()).toBe(200);
     const manifest = await response.json();
     expect(manifest.name).toContain('RedFlag');
-    expect(manifest.theme_color).toBe('#F4EFE6');
+    expect(manifest.theme_color).toBe('#FBFAF7');
   });
 
   test('sets security headers', async ({ request }) => {

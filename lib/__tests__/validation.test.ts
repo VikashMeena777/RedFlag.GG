@@ -5,7 +5,6 @@ import {
   sanitizeText,
   isDisposableEmail,
   signInSchema,
-  verifyOtpSchema,
   fieldErrors,
 } from '../validation';
 
@@ -124,20 +123,11 @@ describe('signInSchema', () => {
   });
 });
 
-describe('verifyOtpSchema', () => {
-  it('requires exactly six digits', () => {
-    const base = { email: 'a@gmail.com' };
-    expect(verifyOtpSchema.safeParse({ ...base, token: '123456' }).success).toBe(
-      true
-    );
-    expect(verifyOtpSchema.safeParse({ ...base, token: '12345' }).success).toBe(
-      false
-    );
-    expect(verifyOtpSchema.safeParse({ ...base, token: '12345a' }).success).toBe(
-      false
-    );
-  });
-});
+/*
+ * The `verifyOtpSchema` block was removed with the 6-digit code flow.
+ * Verification is magic-link only; `/auth/confirm` validates the token hash
+ * server-side via Supabase, so there is no client-side code shape to assert.
+ */
 
 describe('fieldErrors', () => {
   it('maps issues to their field', () => {

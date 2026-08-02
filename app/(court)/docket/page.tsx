@@ -25,38 +25,38 @@ export default async function ToxicDocketPage() {
   return (
     <div className="court-container py-10 sm:py-14">
       <p className="hud flex items-center gap-2 text-heat">
-        <Flame className="size-3.5" strokeWidth={2.5} aria-hidden />
+        <Flame className="size-3.5" strokeWidth={2} aria-hidden />
         Last 24 hours
       </p>
 
-      <h1 className="mt-4 font-display text-[clamp(2.4rem,11vw,3.8rem)] font-extrabold leading-[0.94] tracking-[-0.05em]">
-        <span className="chrome">Most toxic</span>
+      <h1 className="mt-4 font-display text-[clamp(2.4rem,11vw,3.8rem)] font-semibold leading-[1.02] tracking-[-0.03em]">
+        <span className="text-ink">Most toxic</span>
         <br />
-        <span className="text-flag-red glow-red">stories</span>
+        <span className="text-verdict-red">stories</span>
       </h1>
 
-      <p className="mt-5 max-w-md text-[15px] leading-relaxed text-chalk-dim">
+      <p className="mt-5 max-w-md font-read text-[17px] leading-relaxed text-ink-muted">
         Ranked by the judge&rsquo;s toxicity score, weighted by how many jurors
         showed up. Closed cases only.
       </p>
 
       {cases.length === 0 ? (
         <Panel className="mt-10 p-10 text-center">
-          <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-surface-3">
+          <span className="mx-auto flex size-14 items-center justify-center rounded-[3px] bg-wash">
             <Gavel
-              className="size-6 text-chalk-faint"
+              className="size-6 text-ink-faint"
               strokeWidth={2}
               aria-hidden
             />
           </span>
-          <h2 className="mt-5 font-display text-2xl font-bold tracking-[-0.04em] text-chalk">
+          <h2 className="mt-5 font-display text-2xl font-semibold tracking-[-0.03em] text-ink">
             No rulings yet today
           </h2>
-          <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-chalk-dim">
+          <p className="mx-auto mt-2 max-w-xs font-read text-[15px] leading-relaxed text-ink-muted">
             Cases need to close before they can be ranked. Check the docket for
             what the jury is still deciding.
           </p>
-          <Link href="/" className="pill pill-glass mx-auto mt-6 px-5 py-3 text-sm">
+          <Link href="/" className="pill pill-outline mx-auto mt-6 px-5 py-3 text-sm">
             Back to the docket
           </Link>
         </Panel>

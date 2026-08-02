@@ -110,17 +110,25 @@ function stripMarkup(input: string): string {
 }
 
 /**
- * Neutralises any `&` still present.
+ * Collapses `&amp;` back to a literal `&`.
  *
- * By this point every dangerous entity has been decoded and every tag removed,
- * so a surviving `&` is either literal or an entity we chose not to decode
- * (`&nbsp;`, `&#8203;`). Escaping it to `&amp;` guarantees the output cannot be
- * re-parsed into markup by a consumer that decodes entities, while still
- * displaying as `&` — and it keeps the function idempotent, since `&amp;` decodes
- * back to `&` on a second run and re-escapes identically.
+ * An earlier version escaped every residual `&` to `&amp;` on the theory that it
+ * prevented re-parsing. That was wrong, and user-visible: someone writing
+ * "me & my ex" saw the literal text "me &amp; my ex" on their case page.
+ *
+ * The reasoning error was double-escaping. Sanitisation happens on *storage*,
+ * while escaping belongs at *render* — and React already escapes text children,
+ * so storing `&amp;` means the browser displays the escape sequence itself.
+ *
+ * Dropping it is safe because safety here does not depend on it: `stripMarkup`
+ * runs to a fixed point and then deletes every remaining `<` and `>`, so no `&`
+ * can combine with anything to form a tag. A bare `&` is inert in text.
+ *
+ * Applied last, after entity decoding, so `&amp;lt;` has already been resolved
+ * and cannot be reconstituted here.
  */
-function escapeResidualAmpersands(input: string): string {
-  return input.replace(/&/g, '&amp;');
+function normaliseAmpersands(input: string): string {
+  return input.replace(/&amp;/gi, '&');
 }
 
 /**
@@ -151,7 +159,9 @@ function stripInvisibleCharacters(input: string): string {
  *     past the tag stripper as a fullwidth `<`.
  *  2. Decode dangerous entities (multi-pass) so encoded markup is exposed.
  *  3. Strip markup (multi-pass) so splice attacks cannot rebuild a tag.
- *  4. Escape residual `&` so nothing can be re-parsed downstream.
+ *  4. Collapse `&amp;` to `&` so stored text is literal, not escaped. Escaping
+ *     belongs at render time — React already does it — and storing `&amp;` made
+ *     "me & my ex" display as "me &amp; my ex".
  *  5. Remove invisible/bidi characters that could hide or reverse content.
  *  6. Normalise whitespace: CRLF to LF, collapse 3+ newlines to a paragraph
  *     break, trim.
@@ -164,7 +174,7 @@ export function sanitizeText(input: string): string {
   let text = input.normalize('NFKC');
   text = decodeDangerousEntities(text);
   text = stripMarkup(text);
-  text = escapeResidualAmpersands(text);
+  text = normaliseAmpersands(text);
   text = stripInvisibleCharacters(text);
 
   return text

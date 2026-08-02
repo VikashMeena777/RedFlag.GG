@@ -1,37 +1,46 @@
 import { cn } from '@/lib/utils';
 
 /**
- * DIGITAL COURTROOM primitives.
+ * THE RECORD — editorial primitives.
  *
- * Depth comes from glass surfaces, neon edges and soft shadows — never from hard
- * offset shadows or heavy black borders. Actions are pills that compress on press
- * rather than translating.
+ * Structure comes from hairline rules, whitespace and type scale, never from
+ * heavy borders, glow or offset shadows. Accent colour is rationed: red belongs
+ * to verdicts, and using it for ordinary chrome would spend the one signal the
+ * page has.
+ *
+ * The module keeps its old filename and export names so the ~15 component call
+ * sites port without churn. Everything inside is new.
  */
 
-type Tone = 'red' | 'green' | 'judge' | 'pro' | 'heat' | 'neutral';
+type Tone = 'red' | 'green' | 'split' | 'pro' | 'heat' | 'neutral';
 
-/** Primary action. Filled neon for the main path, glass for everything else. */
+/**
+ * Action button.
+ *
+ * `ink` is the default primary: solid near-black. Red is reserved for actions
+ * that *are* the red flag, so the accent keeps its meaning.
+ */
 export function NeonButton({
   children,
   className,
-  variant = 'glass',
+  variant = 'outline',
   size = 'md',
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'red' | 'green' | 'judge' | 'glass' | 'ghost';
+  variant?: 'ink' | 'red' | 'green' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
 }) {
   return (
     <button
       className={cn(
         'pill',
-        size === 'sm' && 'px-3.5 py-2 text-[13px]',
-        size === 'md' && 'px-5 py-2.5 text-sm',
-        size === 'lg' && 'px-6 py-3.5 text-base',
+        size === 'sm' && 'px-3 py-1.5 text-[13px]',
+        size === 'md' && 'px-4 py-2 text-sm',
+        size === 'lg' && 'px-5 py-2.5 text-[15px]',
+        variant === 'ink' && 'pill-ink',
         variant === 'red' && 'pill-red',
         variant === 'green' && 'pill-green',
-        variant === 'judge' && 'pill-judge',
-        variant === 'glass' && 'pill-glass',
+        variant === 'outline' && 'pill-outline',
         variant === 'ghost' && 'pill-ghost',
         className
       )}
@@ -45,8 +54,8 @@ export function NeonButton({
 /**
  * The workhorse surface.
  *
- * `tone` tints the border and lays a coloured bloom outside it — this is how a
- * card announces its verdict without needing a stamp graphic.
+ * `tone` adds a 3px left rule — the way a print layout marks a callout —
+ * replacing the previous system's coloured glow.
  */
 export function Panel({
   children,
@@ -66,7 +75,7 @@ export function Panel({
         'panel',
         tone === 'red' && 'edge-red',
         tone === 'green' && 'edge-green',
-        tone === 'judge' && 'edge-judge',
+        tone === 'split' && 'edge-split',
         tone === 'pro' && 'edge-pro',
         className
       )}
@@ -77,7 +86,7 @@ export function Panel({
   );
 }
 
-/** Small rounded tag. Categories, states, counts. */
+/** Small inline tag: categories, states, counts. */
 export function Chip({
   children,
   tone = 'neutral',
@@ -93,7 +102,7 @@ export function Chip({
         'chip',
         tone === 'red' && 'chip-red',
         tone === 'green' && 'chip-green',
-        tone === 'judge' && 'chip-judge',
+        tone === 'split' && 'chip-split',
         tone === 'heat' && 'chip-heat',
         tone === 'pro' && 'chip-pro',
         className
@@ -105,10 +114,11 @@ export function Chip({
 }
 
 /**
- * The verdict badge — the loudest element on a closed case.
+ * The verdict, set as a headline rather than a badge.
  *
- * Deliberately not a rotated rubber stamp: that idiom belongs to the sibling
- * newsprint project. This is a flat neon plate with a glow.
+ * This is the biggest departure from every previous attempt: no stamp, no plate,
+ * no glow. A serif line in the accent colour, with a rule above it — the way a
+ * newspaper sets a ruling. At thumbnail size the *word* is what reads.
  */
 export function VerdictBadge({
   children,
@@ -117,21 +127,18 @@ export function VerdictBadge({
   animate = false,
 }: {
   children: React.ReactNode;
-  tone: 'red' | 'green' | 'judge';
+  tone: 'red' | 'green' | 'split';
   className?: string;
   animate?: boolean;
 }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-2 rounded-[var(--radius-pill)] px-4 py-1.5 font-hud text-[11px] font-bold uppercase tracking-[0.2em]',
-        tone === 'red' &&
-          'bg-flag-red-deep text-flag-red ring-1 ring-flag-red/50 glow-red',
-        tone === 'green' &&
-          'bg-flag-green-deep text-flag-green ring-1 ring-flag-green/45 glow-green',
-        tone === 'judge' &&
-          'bg-judge-deep text-judge ring-1 ring-judge/45 glow-judge',
-        animate && 'animate-verdict-in',
+        'inline-flex items-center gap-2 font-display text-[15px] font-semibold tracking-[-0.015em]',
+        tone === 'red' && 'text-verdict-red',
+        tone === 'green' && 'text-verdict-green',
+        tone === 'split' && 'text-verdict-split',
+        animate && 'animate-fade-up',
         className
       )}
     >
@@ -143,9 +150,9 @@ export function VerdictBadge({
 /**
  * Jury split bar.
  *
- * Red fills from the left, lime from the right, meeting at a bright seam. The
- * seam is what makes the ratio readable at thumbnail size — a plain two-colour
- * bar reads as one blob when the split is lopsided.
+ * A single hairline-height bar: red from the left, green filling the remainder.
+ * Deliberately thin — this is a data mark in a column of text, not a UI widget,
+ * and a chunky rounded bar would break the editorial register.
  */
 export function SplitBar({
   redPct,
@@ -162,10 +169,7 @@ export function SplitBar({
 }) {
   return (
     <div
-      className={cn(
-        'relative flex h-2.5 overflow-hidden rounded-[var(--radius-pill)] bg-surface-3',
-        className
-      )}
+      className={cn('flex h-1 overflow-hidden bg-wash', className)}
       role="img"
       aria-label={
         hasVotes
@@ -177,16 +181,14 @@ export function SplitBar({
         <>
           <div
             className={cn(
-              'h-full bg-flag-red shadow-[0_0_12px_0_var(--color-flag-red-glow)]',
+              'h-full bg-verdict-red',
               animate && 'animate-bar-fill'
             )}
             style={{ width: `${redPct}%` }}
           />
-          {/* Bright seam so the boundary is unmistakable. */}
-          <div className="h-full w-px bg-chalk/70" />
           <div
             className={cn(
-              'h-full flex-1 bg-flag-green shadow-[0_0_12px_0_var(--color-flag-green-glow)]',
+              'h-full flex-1 bg-verdict-green',
               animate && 'animate-bar-fill'
             )}
           />
@@ -196,7 +198,7 @@ export function SplitBar({
   );
 }
 
-/** Toxicity meter. Amber ramp, distinct from the red/green verdict axis. */
+/** Toxicity meter. Amber, distinct from the red/green verdict axis. */
 export function HeatBar({
   value,
   className,
@@ -208,40 +210,45 @@ export function HeatBar({
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <div
-      className={cn(
-        'h-1.5 overflow-hidden rounded-[var(--radius-pill)] bg-surface-3',
-        className
-      )}
+      className={cn('h-1 overflow-hidden bg-wash', className)}
       role="img"
       aria-label={`Toxicity ${clamped} out of 100`}
     >
-      <div
-        className="h-full rounded-[var(--radius-pill)] bg-gradient-to-r from-heat to-flag-red shadow-[0_0_10px_0_rgb(255_182_39/0.5)]"
-        style={{ width: `${clamped}%` }}
-      />
+      <div className="h-full bg-heat" style={{ width: `${clamped}%` }} />
     </div>
   );
 }
 
-/** Fading hairline divider. */
-export function Rule({ className }: { className?: string }) {
-  return <hr className={cn('hairline border-0', className)} />;
+/** Hairline divider. `strong` marks a department break. */
+export function Rule({
+  className,
+  strong = false,
+}: {
+  className?: string;
+  strong?: boolean;
+}) {
+  return <hr className={cn(strong ? 'rule-strong' : 'hairline', className)} />;
 }
 
-/** Live pulse dot for in-session cases. */
+/**
+ * Live indicator for cases still taking votes.
+ *
+ * A small filled square rather than a pulsing dot — squares read as typographic
+ * marks (▪) and sit better beside small-caps metadata than a glowing circle.
+ */
 export function LiveDot({
   tone = 'red',
   className,
 }: {
-  tone?: 'red' | 'judge';
+  tone?: 'red' | 'split';
   className?: string;
 }) {
   return (
     <span
       aria-hidden
       className={cn(
-        'inline-block size-1.5 animate-breathe rounded-full',
-        tone === 'red' ? 'bg-flag-red text-flag-red' : 'bg-judge text-judge',
+        'inline-block size-1.5 animate-pulse-soft',
+        tone === 'red' ? 'bg-verdict-red' : 'bg-verdict-split',
         className
       )}
     />

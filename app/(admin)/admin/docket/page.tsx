@@ -22,10 +22,10 @@ export default async function AdminDocketPage() {
     return (
       <div className="court-container py-16">
         <Panel className="p-9 text-center">
-          <h1 className="font-display text-2xl font-bold tracking-[-0.04em] text-chalk">
+          <h1 className="font-display text-2xl font-semibold tracking-[-0.03em] text-ink">
             Nothing here
           </h1>
-          <p className="mt-2.5 text-sm text-chalk-dim">
+          <p className="mt-2.5 text-sm text-ink-muted">
             This page does not exist for your account.
           </p>
         </Panel>
@@ -38,10 +38,10 @@ export default async function AdminDocketPage() {
   return (
     <div className="court-container-wide py-10">
       <p className="hud">Clerk&rsquo;s desk</p>
-      <h1 className="mt-3 font-display text-[clamp(2rem,8vw,3rem)] font-extrabold leading-[0.95] tracking-[-0.05em]">
-        <span className="chrome">Moderation queue</span>
+      <h1 className="mt-3 font-display text-[clamp(2rem,8vw,3rem)] font-semibold leading-[1.02] tracking-[-0.03em] text-ink">
+        Moderation queue
       </h1>
-      <p className="mt-4 max-w-lg text-sm leading-relaxed text-chalk-dim">
+      <p className="mt-4 max-w-lg font-read text-sm leading-relaxed text-ink-muted">
         Cases that were reported, auto-hidden, or flagged for language. Removing a
         case strikes its author; three strikes ends their filing rights.
       </p>

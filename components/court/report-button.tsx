@@ -37,8 +37,8 @@ export function ReportButton({
 
   if (done) {
     return (
-      <p className="flex items-center gap-1.5 font-hud text-[10px] font-medium uppercase tracking-[0.16em] text-flag-green">
-        <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
+      <p className="hud flex items-center gap-1.5 text-verdict-green">
+        <Check className="size-3.5" strokeWidth={2} aria-hidden />
         Report received — the clerk will review it
       </p>
     );
@@ -55,9 +55,9 @@ export function ReportButton({
           }
           setOpen(true);
         }}
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-chalk-faint transition-colors hover:text-flag-red"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-faint transition-colors hover:text-verdict-red"
       >
-        <ShieldAlert className="size-3.5" strokeWidth={2.25} aria-hidden />
+        <ShieldAlert className="size-3.5" strokeWidth={2} aria-hidden />
         Report this case
       </button>
     );
@@ -88,10 +88,10 @@ export function ReportButton({
               onClick={() => setReason(r)}
               aria-pressed={reason === r}
               className={cn(
-                'flex items-center gap-2.5 rounded-[var(--radius-tile)] border px-3 py-2.5 text-left text-xs font-medium transition-all',
+                'flex items-center gap-2.5 rounded-[3px] border px-3 py-2.5 text-left text-xs font-medium transition-colors',
                 reason === r
-                  ? 'border-flag-red/60 bg-flag-red-deep text-flag-red'
-                  : 'border-line bg-surface text-chalk-dim hover:border-line-bright hover:text-chalk'
+                  ? 'border-verdict-red/60 bg-verdict-red-soft text-verdict-red'
+                  : 'border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink'
               )}
             >
               <span
@@ -99,12 +99,12 @@ export function ReportButton({
                 className={cn(
                   'flex size-4 shrink-0 items-center justify-center rounded-full border',
                   reason === r
-                    ? 'border-flag-red bg-flag-red'
-                    : 'border-line-bright'
+                    ? 'border-verdict-red bg-verdict-red'
+                    : 'border-rule-strong'
                 )}
               >
                 {reason === r && (
-                  <span className="size-1.5 rounded-full bg-[#1a0009]" />
+                  <span className="size-1.5 rounded-full bg-surface" />
                 )}
               </span>
               {REPORT_REASON_LABELS[r]}
@@ -122,7 +122,7 @@ export function ReportButton({
         onChange={(e) => setDetails(e.target.value)}
         rows={2}
         maxLength={500}
-        className="panel-sunk mt-2 w-full resize-none p-3 text-sm text-chalk outline-none transition-colors focus:border-judge"
+        className="panel-sunk mt-2 w-full resize-none p-3 text-sm text-ink outline-none transition-colors focus:border-verdict-split"
       />
 
       <div className="mt-4 flex gap-2.5">

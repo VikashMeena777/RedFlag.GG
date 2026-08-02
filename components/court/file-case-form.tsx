@@ -75,10 +75,10 @@ export function FileCaseForm() {
               onClick={() => setCategory(cat)}
               aria-pressed={category === cat}
               className={cn(
-                'pill border px-4 py-2 text-[13px] transition-all',
+                'pill border px-4 py-2 text-[13px]',
                 category === cat
-                  ? 'border-flag-red/60 bg-flag-red-deep text-flag-red'
-                  : 'border-line bg-surface-2 text-chalk-dim hover:border-line-bright hover:text-chalk'
+                  ? 'border-verdict-red/60 bg-verdict-red-soft text-verdict-red'
+                  : 'border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink'
               )}
             >
               {CATEGORY_LABELS[cat]}
@@ -98,10 +98,10 @@ export function FileCaseForm() {
               onClick={() => setPersona(p)}
               aria-pressed={persona === p}
               className={cn(
-                'pill border px-4 py-2 text-[13px] transition-all',
+                'pill border px-4 py-2 text-[13px]',
                 persona === p
-                  ? 'border-judge/60 bg-judge-deep text-judge'
-                  : 'border-line bg-surface-2 text-chalk-dim hover:border-line-bright hover:text-chalk'
+                  ? 'border-verdict-split/60 bg-verdict-split-soft text-verdict-split'
+                  : 'border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink'
               )}
             >
               {PERSONA_LABELS[p]}
@@ -125,17 +125,17 @@ export function FileCaseForm() {
           placeholder="He liked her post 4 seconds after our fight"
           aria-invalid={Boolean(errors.title)}
           aria-describedby={errors.title ? 'title-error' : undefined}
-          className="panel-sunk w-full p-3.5 text-base text-chalk outline-none transition-colors focus:border-judge"
+          className="panel-sunk w-full p-3.5 text-base text-ink outline-none transition-colors focus:border-verdict-split"
         />
         <div className="mt-2 flex justify-between gap-3">
           {errors.title ? (
-            <p id="title-error" className="text-xs font-medium text-flag-red">
+            <p id="title-error" className="text-xs font-medium text-verdict-red">
               {errors.title}
             </p>
           ) : (
             <span />
           )}
-          <span className="shrink-0 font-hud text-[10px] tracking-[0.1em] text-chalk-faint">
+          <span className="hud shrink-0">
             {title.length}/{TITLE_MAX}
           </span>
         </div>
@@ -157,11 +157,11 @@ export function FileCaseForm() {
           placeholder="Give the jury the full timeline. No names, no @s, no schools, no workplaces."
           aria-invalid={Boolean(errors.body)}
           aria-describedby={errors.body ? 'body-error' : 'body-hint'}
-          className="panel-sunk w-full resize-y p-3.5 text-[15px] leading-relaxed text-chalk outline-none transition-colors focus:border-judge"
+          className="panel-sunk w-full resize-y p-3.5 text-[15px] leading-relaxed text-ink outline-none transition-colors focus:border-verdict-split"
         />
         <div className="mt-2 flex justify-between gap-3">
           {errors.body ? (
-            <p id="body-error" className="text-xs font-medium text-flag-red">
+            <p id="body-error" className="text-xs font-medium text-verdict-red">
               {errors.body}
             </p>
           ) : (
@@ -169,7 +169,7 @@ export function FileCaseForm() {
               id="body-hint"
               className={cn(
                 'text-xs',
-                shortBy > 0 ? 'text-chalk-faint' : 'text-flag-green'
+                shortBy > 0 ? 'text-ink-faint' : 'text-verdict-green'
               )}
             >
               {shortBy > 0
@@ -177,7 +177,7 @@ export function FileCaseForm() {
                 : 'Ready for the jury'}
             </p>
           )}
-          <span className="shrink-0 font-hud text-[10px] tracking-[0.1em] text-chalk-faint">
+          <span className="hud shrink-0">
             {bodyCount}/{BODY_MAX}
           </span>
         </div>
@@ -187,11 +187,11 @@ export function FileCaseForm() {
 
       {/* Rules consent */}
       <div className="panel-flat p-5">
-        <p className="mb-3.5 flex items-center gap-2 font-hud text-[10px] font-medium uppercase tracking-[0.18em] text-heat">
-          <ShieldAlert className="size-4" strokeWidth={2.25} aria-hidden />
+        <p className="hud mb-3.5 flex items-center gap-2 text-heat">
+          <ShieldAlert className="size-4" strokeWidth={2} aria-hidden />
           Court rules
         </p>
-        <ul className="mb-5 space-y-2 text-xs leading-relaxed text-chalk-dim">
+        <ul className="mb-5 space-y-2 text-xs leading-relaxed text-ink-muted">
           <li>No names, @handles, phone numbers, emails, or links.</li>
           <li>No schools, workplaces, or anything that identifies someone.</li>
           <li>No screenshots or photos of real people.</li>
@@ -202,8 +202,8 @@ export function FileCaseForm() {
         </ul>
 
         {/*
-          Custom checkbox: a native one cannot be styled to read correctly on
-          dark glass. The real input stays in the DOM (sr-only) so the form still
+          Custom checkbox: a native one cannot be styled to match the editorial
+          register. The real input stays in the DOM (sr-only) so the form still
           submits `acceptedRules` and `required` validation applies.
         */}
         <label className="flex cursor-pointer items-start gap-3">
@@ -218,23 +218,23 @@ export function FileCaseForm() {
           <span
             aria-hidden
             className={cn(
-              'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-all',
-              'peer-focus-visible:ring-2 peer-focus-visible:ring-judge',
+              'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-[3px] border transition-colors',
+              'peer-focus-visible:ring-2 peer-focus-visible:ring-verdict-split',
               accepted
-                ? 'border-flag-green bg-flag-green text-[#101a00]'
-                : 'border-line-bright bg-surface'
+                ? 'border-verdict-green bg-verdict-green text-white'
+                : 'border-rule-strong bg-surface'
             )}
           >
-            {accepted && <Check className="size-3.5" strokeWidth={3} />}
+            {accepted && <Check className="size-3.5" strokeWidth={2} />}
           </span>
-          <span className="text-xs font-medium leading-relaxed text-chalk">
+          <span className="text-xs font-medium leading-relaxed text-ink">
             I confirm this story identifies nobody, and everyone involved is 18 or
             over.
           </span>
         </label>
 
         {errors.acceptedRules && (
-          <p className="mt-2.5 text-xs font-medium text-flag-red">
+          <p className="mt-2.5 text-xs font-medium text-verdict-red">
             {errors.acceptedRules}
           </p>
         )}
@@ -246,7 +246,7 @@ export function FileCaseForm() {
         size="lg"
         disabled={isPending || !accepted || bodyCount < BODY_MIN}
       >
-        <PenLine className="size-4" strokeWidth={2.5} aria-hidden />
+        <PenLine className="size-4" strokeWidth={2} aria-hidden />
         {isPending ? 'Filing…' : 'File the case'}
       </NeonButton>
     </form>

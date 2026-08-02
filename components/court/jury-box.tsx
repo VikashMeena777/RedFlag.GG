@@ -2,14 +2,19 @@
 
 import { useState, useTransition, useOptimistic } from 'react';
 import { toast } from 'sonner';
-import { Flag, Sparkles } from 'lucide-react';
+import { Flag, Leaf, Check } from 'lucide-react';
 import { castVote } from '@/lib/actions/votes';
 import { SplitBar } from '@/components/ui/neon';
 import { cn, voteSplit, compactCount } from '@/lib/utils';
 import type { VoteChoice } from '@/lib/types';
 
 /**
- * The jury box: two oversized neon choices.
+ * The jury box: a ballot, not a game controller.
+ *
+ * Two bordered choices side by side, restrained until picked — a selected ballot
+ * fills with its verdict colour and shows a tick. The difference has to be
+ * unmistakable, because "did my vote register?" is the one question this UI must
+ * never leave open.
  *
  * Optimistic by design — a vote must feel instant or the loop dies. The server
  * returns authoritative weighted tallies and we reconcile; on failure we revert
@@ -85,26 +90,24 @@ export function JuryBox({
   const shown = optimisticVote ?? myVote;
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-center text-sm font-medium text-chalk-dim">
-        {disabled ? disabledReason : 'You are the jury. Call it.'}
+    <div className="flex flex-col gap-5">
+      <p className="text-center font-read text-[15px] italic text-ink-muted">
+        {disabled ? disabledReason : 'You are the jury. Return a verdict.'}
       </p>
 
       <div className="grid grid-cols-2 gap-3">
-        <VoteChoiceButton
+        <Ballot
           tone="red"
           label="Red flag"
-          sublabel={shown === 'red' ? 'your call' : 'run'}
-          icon={<Flag className="size-6" strokeWidth={2.25} aria-hidden />}
+          icon={<Flag className="size-5" strokeWidth={2} aria-hidden />}
           selected={shown === 'red'}
           disabled={disabled || isPending}
           onClick={() => vote('red')}
         />
-        <VoteChoiceButton
+        <Ballot
           tone="green"
           label="Green flag"
-          sublabel={shown === 'green' ? 'your call' : 'they good'}
-          icon={<Sparkles className="size-6" strokeWidth={2.25} aria-hidden />}
+          icon={<Leaf className="size-5" strokeWidth={2} aria-hidden />}
           selected={shown === 'green'}
           disabled={disabled || isPending}
           onClick={() => vote('green')}
@@ -115,20 +118,18 @@ export function JuryBox({
           not anchored by a meaningless 50/50. */}
       {split.hasVotes && (
         <div>
-          <div className="mb-2 flex items-center justify-between font-hud text-[10px] font-medium uppercase tracking-[0.16em]">
-            <span className="text-flag-red">{split.red}% red</span>
-            <span className="text-chalk-faint">
-              {compactCount(ballots)} jurors
-            </span>
-            <span className="text-flag-green">{split.green}% green</span>
-          </div>
           <SplitBar
             redPct={split.red}
             greenPct={split.green}
             hasVotes
             animate
-            className="h-3"
+            className="h-1.5"
           />
+          <div className="mt-2 flex items-center justify-between hud">
+            <span className="text-verdict-red">{split.red}% red</span>
+            <span>{compactCount(ballots)} jurors</span>
+            <span className="text-verdict-green">{split.green}% green</span>
+          </div>
         </div>
       )}
     </div>
@@ -136,16 +137,16 @@ export function JuryBox({
 }
 
 /**
- * One side of the jury box.
+ * One side of the ballot.
  *
- * Unselected is a glass tile with a coloured icon; selected floods with the neon
- * and drops a matching bloom. The difference has to be obvious at a glance,
- * because "did my vote register?" is the one question this UI must never leave open.
+ * Unselected is a plain bordered box with a coloured label; selected fills with
+ * the verdict colour. No scale transform or shadow — the fill and the tick carry
+ * the state, which keeps the interaction legible without breaking the editorial
+ * register.
  */
-function VoteChoiceButton({
+function Ballot({
   tone,
   label,
-  sublabel,
   icon,
   selected,
   disabled,
@@ -153,7 +154,6 @@ function VoteChoiceButton({
 }: {
   tone: 'red' | 'green';
   label: string;
-  sublabel: string;
   icon: React.ReactNode;
   selected: boolean;
   disabled?: boolean;
@@ -166,24 +166,32 @@ function VoteChoiceButton({
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        'group flex flex-col items-center gap-2 rounded-[var(--radius-card)] px-3 py-6',
-        'border transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-45',
-        'active:scale-[0.97]',
+        'flex flex-col items-center justify-center gap-2 rounded-[3px] border px-3 py-6',
+        'transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45',
         selected
           ? tone === 'red'
-            ? 'border-flag-red/70 bg-flag-red text-[#1a0009] shadow-[0_8px_32px_-8px_var(--color-flag-red)]'
-            : 'border-flag-green/70 bg-flag-green text-[#101a00] shadow-[0_8px_32px_-8px_var(--color-flag-green)]'
+            ? 'border-verdict-red bg-verdict-red text-white'
+            : 'border-verdict-green bg-verdict-green text-white'
           : tone === 'red'
-            ? 'border-line bg-flag-red-deep/40 text-flag-red hover:border-flag-red/60 hover:bg-flag-red-deep'
-            : 'border-line bg-flag-green-deep/40 text-flag-green hover:border-flag-green/60 hover:bg-flag-green-deep'
+            ? 'border-rule-strong bg-surface text-verdict-red hover:border-verdict-red hover:bg-verdict-red-soft'
+            : 'border-rule-strong bg-surface text-verdict-green hover:border-verdict-green hover:bg-verdict-green-soft'
       )}
     >
-      {icon}
-      <span className="font-display text-lg font-bold tracking-[-0.03em]">
+      {selected ? (
+        <Check className="size-5" strokeWidth={2.5} aria-hidden />
+      ) : (
+        icon
+      )}
+      <span className="font-display text-base font-semibold tracking-[-0.02em]">
         {label}
       </span>
-      <span className="font-hud text-[9px] font-medium uppercase tracking-[0.18em] opacity-80">
-        {sublabel}
+      <span
+        className={cn(
+          'text-[11px] font-medium uppercase tracking-[0.1em]',
+          selected ? 'opacity-80' : 'text-ink-faint'
+        )}
+      >
+        {selected ? 'Your verdict' : 'Cast'}
       </span>
     </button>
   );

@@ -23,7 +23,7 @@ export function CancelSubscriptionButton() {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="self-start text-xs font-medium text-chalk-faint underline-offset-4 transition-colors hover:text-flag-red hover:underline"
+        className="self-start text-xs font-medium text-ink-faint underline-offset-4 transition-colors hover:text-verdict-red hover:underline"
       >
         Cancel membership
       </button>
@@ -32,7 +32,7 @@ export function CancelSubscriptionButton() {
 
   return (
     <div className="panel-flat p-5">
-      <p className="text-sm font-medium text-chalk">
+      <p className="text-sm font-medium text-ink">
         Cancel RedFlag Pro? You keep access until the end of the period you have
         already paid for.
       </p>
@@ -53,7 +53,7 @@ export function CancelSubscriptionButton() {
             })
           }
         >
-          <XCircle className="size-4" strokeWidth={2.25} aria-hidden />
+          <XCircle className="size-4" strokeWidth={2} aria-hidden />
           {isPending ? 'Cancelling…' : 'Confirm cancellation'}
         </NeonButton>
         <NeonButton size="sm" variant="ghost" onClick={() => setConfirming(false)}>

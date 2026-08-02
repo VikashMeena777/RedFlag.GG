@@ -1,126 +1,113 @@
 @import 'tailwindcss';
 
 /* ═══════════════════════════════════════════════════════════════════
-   REDFLAG.GG — "DIGITAL COURTROOM"
+   REDFLAG.GG — "THE RECORD"
 
-   A late-night verdict feed: black void, neon evidence, chrome type.
-   Reads like a dating app that got angry, not a paper document.
+   An editorial court report: warm paper-white, near-black text, a single
+   red accent used sparingly, and a serif display face doing the talking.
+   Reads like a well-set magazine feature, not an app chrome.
 
    Tailwind v4: tokens live here in `@theme`, NOT a tailwind.config.ts
    (there isn't one). Each token generates utilities, e.g.
-   --color-flag-red → bg-flag-red / text-flag-red / border-flag-red.
+   --color-verdict-red → bg-verdict-red / text-verdict-red.
 
    DESIGN LAW — a screenshot must read as a VERDICT at thumbnail size.
-   Here that is achieved with glow and contrast rather than borders:
-   one neon accent dominates the card, and the verdict word is the
-   largest thing on it.
+   Here that comes from TYPE, not decoration: the ruling is the largest
+   thing on the card, set in a high-contrast serif, with everything else
+   deliberately quiet around it.
 
-   HARD CONSTRAINTS (this project shares a repo family with a
-   newsprint-styled sibling — these keep them visually distinct):
-     · no paper/manila backgrounds, no black hard-offset shadows
-     · no Anton, no uppercase-by-default headings
-     · no square-by-default geometry, no halftone dot screens
-     · no yellow highlighter
+   HARD CONSTRAINTS (three directions have already been tried and
+   rejected; these keep the fourth from drifting back into any of them):
+     · not dark — no void backgrounds, no neon, no glow, no chrome text
+     · not brutalist — no hard offset shadows, no heavy black borders,
+       no rubber stamps, no masking tape, no halftone
+     · no all-caps display type; sentence case with a serif instead
+     · restraint over decoration: rules and whitespace, not boxes
    ═══════════════════════════════════════════════════════════════════ */
 
 @theme {
-  /* ── Surfaces: void → elevated glass ──────────────────────────── */
-  --color-void: #07060c;
-  --color-void-deep: #030209;
-  --color-surface: #12101c;
-  --color-surface-2: #1a1728;
-  --color-surface-3: #241f37;
+  /* ── Surfaces: warm paper, not clinical white ─────────────────── */
+  --color-page: #fbfaf7;
+  --color-surface: #ffffff;
+  --color-sunk: #f4f2ed;
+  --color-wash: #efece5;
 
-  /* ── Hairlines. Light at low alpha, never solid black. ─────────── */
-  --color-line: #2b2642;
-  --color-line-bright: #423a63;
+  /* ── Ink: near-black, never pure #000 (harsh on warm paper) ───── */
+  --color-ink: #17161a;
+  --color-ink-muted: #56535e;
+  --color-ink-faint: #8b8794;
 
-  /* ── Type: chalk on void ──────────────────────────────────────── */
-  --color-chalk: #f5f2ff;
-  --color-chalk-dim: #a8a1cc;
-  --color-chalk-faint: #6f688f;
+  /* ── Rules: hairlines only, no heavy borders ──────────────────── */
+  --color-rule: #e3dfd6;
+  --color-rule-strong: #cdc7ba;
 
-  /* ── Verdict neons ────────────────────────────────────────────── */
-  /* Red flag = hot magenta. Reads "danger" without being fire-engine. */
-  --color-flag-red: #ff2e7e;
-  --color-flag-red-deep: #4a0722;
-  --color-flag-red-glow: #ff2e7e40;
+  /* ── The single accent. Deep editorial red, not fire-engine. ──── */
+  --color-verdict-red: #b3202b;
+  --color-verdict-red-soft: #fbeeee;
 
-  /* Green flag = acid lime. Unmistakable at 120px wide. */
-  --color-flag-green: #b4ff39;
-  --color-flag-green-deep: #2b4207;
-  --color-flag-green-glow: #b4ff3940;
+  /* ── Green is the counterweight; muted so red stays dominant. ─── */
+  --color-verdict-green: #1f6d4a;
+  --color-verdict-green-soft: #ecf5f0;
 
-  /* ── The judge: electric cyan, the only "authority" colour ────── */
-  --color-judge: #3de0ff;
-  --color-judge-deep: #06384a;
-  --color-judge-glow: #3de0ff40;
+  /* ── Split verdict / editorial notes: ink-blue. ───────────────── */
+  --color-verdict-split: #2f4a7a;
+  --color-verdict-split-soft: #eef1f7;
 
-  /* ── Pro tier ─────────────────────────────────────────────────── */
-  --color-pro: #9d5cff;
-  --color-pro-deep: #2a0e57;
+  /* ── Pro tier. Restrained gold, used only on the badge. ───────── */
+  --color-pro: #8a6a1f;
+  --color-pro-soft: #f8f2e2;
 
-  /* ── Heat / toxicity ramp ─────────────────────────────────────── */
-  --color-heat: #ffb627;
-  --color-heat-deep: #4a2f00;
+  /* ── Toxicity ramp. Warm, sits between green and red. ─────────── */
+  --color-heat: #b8651a;
 
   /* ── Typography ───────────────────────────────────────────────── */
-  /* Bricolage Grotesque: variable, wide, slightly unhinged. Mixed case. */
-  --font-display: var(--font-bricolage), 'Trebuchet MS', system-ui, sans-serif;
-  /* Azeret Mono for HUD/case numbers — squarer than Space Mono. */
-  --font-hud: var(--font-azeret), ui-monospace, monospace;
-  --font-sans: var(--font-jakarta), system-ui, sans-serif;
-
-  /* ── Geometry: rounded by default, pills for actions ──────────── */
-  --radius-card: 22px;
-  --radius-tile: 14px;
-  --radius-pill: 999px;
+  /* Fraunces: high-contrast serif with an optical size axis. The whole
+     look rests on this — it is what makes the page read as editorial
+     rather than as an interface. */
+  --font-display: var(--font-fraunces), 'Iowan Old Style', Georgia, serif;
+  /* Newsreader for long-form case bodies: a reading serif, not a UI face. */
+  --font-read: var(--font-newsreader), Georgia, 'Times New Roman', serif;
+  /* Inter for UI furniture, labels, and anything numeric. */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
 
   --breakpoint-xs: 380px;
 
-  /* ── Motion ───────────────────────────────────────────────────── */
-  --animate-slam: slam 380ms cubic-bezier(0.16, 1.1, 0.3, 1) both;
-  --animate-verdict-in: verdict-in 420ms cubic-bezier(0.16, 1.2, 0.3, 1) both;
-  --animate-rise: rise 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-bar-fill: bar-fill 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-breathe: breathe 2.4s ease-in-out infinite;
-  --animate-scan: scan 2.8s linear infinite;
-  --animate-ticker: ticker 32s linear infinite;
-  --animate-shimmer: shimmer 3.5s linear infinite;
+  /* ── Motion: understated. Editorial pages do not bounce. ──────── */
+  --animate-fade-up: fade-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 300ms ease-out both;
+  --animate-rule-draw: rule-draw 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-bar-fill: bar-fill 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pulse-soft: pulse-soft 2.6s ease-in-out infinite;
+  --animate-marquee: marquee 38s linear infinite;
 
-  /* Verdict lands by punching in from the screen plane, not rotating. */
-  @keyframes verdict-in {
+  @keyframes fade-up {
     0% {
-      transform: perspective(600px) translateZ(120px);
-      opacity: 0;
-      filter: blur(6px);
-    }
-    100% {
-      transform: perspective(600px) translateZ(0);
-      opacity: 1;
-      filter: blur(0);
-    }
-  }
-
-  @keyframes slam {
-    0% {
-      transform: translateY(-14px) scale(1.04);
-      opacity: 0;
-    }
-    100% {
-      transform: translateY(0) scale(1);
-      opacity: 1;
-    }
-  }
-
-  @keyframes rise {
-    0% {
-      transform: translateY(14px);
+      transform: translateY(10px);
       opacity: 0;
     }
     100% {
       transform: translateY(0);
       opacity: 1;
+    }
+  }
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  /* A rule drawing itself in is the one flourish the system allows —
+     it echoes a printed page being typeset. */
+  @keyframes rule-draw {
+    0% {
+      transform: scaleX(0);
+    }
+    100% {
+      transform: scaleX(1);
     }
   }
 
@@ -133,45 +120,22 @@
     }
   }
 
-  /* Live indicator: a glow that breathes, not an opacity blink. */
-  @keyframes breathe {
+  @keyframes pulse-soft {
     0%,
     100% {
       opacity: 1;
-      box-shadow: 0 0 0 0 currentColor;
     }
     50% {
-      opacity: 0.72;
-      box-shadow: 0 0 0 5px transparent;
+      opacity: 0.4;
     }
   }
 
-  /* Sweeping scanline down an open case — "session in progress". */
-  @keyframes scan {
-    0% {
-      transform: translateY(-100%);
-    }
-    100% {
-      transform: translateY(400%);
-    }
-  }
-
-  @keyframes ticker {
+  @keyframes marquee {
     0% {
       transform: translateX(0);
     }
     100% {
       transform: translateX(-50%);
-    }
-  }
-
-  /* Chrome wordmark: light travelling across the gradient. */
-  @keyframes shimmer {
-    0% {
-      background-position: 0% 50%;
-    }
-    100% {
-      background-position: 200% 50%;
     }
   }
 }
@@ -184,60 +148,56 @@
   html {
     -webkit-text-size-adjust: 100%;
     scrollbar-gutter: stable;
-    /* Dark-first: tells the UA to render form controls and scrollbars dark. */
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
-    background-color: var(--color-void);
-    color: var(--color-chalk);
+    background-color: var(--color-page);
+    color: var(--color-ink);
     font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 1.62;
+    font-size: 16px;
+    line-height: 1.6;
     min-height: 100dvh;
-    /*
-     * Two bloom pools, magenta and cyan, at the top corners. Fixed so the
-     * lighting stays put while content scrolls under it.
-     */
-    background-image:
-      radial-gradient(
-        ellipse 90% 55% at 12% -8%,
-        rgb(255 46 126 / 0.16),
-        transparent 62%
-      ),
-      radial-gradient(
-        ellipse 80% 50% at 92% 2%,
-        rgb(61 224 255 / 0.12),
-        transparent 60%
-      );
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+    /* Optical niceties that matter at editorial sizes. */
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
   /*
-   * Display type is mixed-case and tightly tracked. Deliberately NOT
-   * uppercase — that is the sibling project's voice.
+   * Display type is a SERIF in sentence case with tight tracking.
+   * Deliberately not uppercase: two previous directions leaned on all-caps
+   * display faces, and this is the clearest single signal that the page is
+   * a different product.
    */
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 0.98;
+    font-weight: 600;
+    letter-spacing: -0.021em;
+    line-height: 1.06;
+    /* Fraunces axes: slight optical-size bump and a touch of "soft". */
+    font-variation-settings: 'SOFT' 12, 'WONK' 0;
   }
 
-  /* Cyan ring with a bloom, so it is visible over neon and over void. */
+  /* Tabular figures everywhere numbers are compared (votes, scores). */
+  time,
+  data,
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A red ring on warm paper: visible without being a UI element. */
   :focus-visible {
-    outline: 2px solid var(--color-judge);
+    outline: 2px solid var(--color-verdict-red);
     outline-offset: 3px;
-    border-radius: 4px;
-    box-shadow: 0 0 0 6px rgb(61 224 255 / 0.16);
+    border-radius: 2px;
   }
 
   ::selection {
-    background: rgb(61 224 255 / 0.32);
-    color: var(--color-chalk);
+    background: var(--color-verdict-red);
+    color: var(--color-surface);
   }
 
   input,
@@ -248,368 +208,293 @@
     color: inherit;
   }
 
-  /* Placeholder must stay legible on dark glass. */
   ::placeholder {
-    color: var(--color-chalk-faint);
+    color: var(--color-ink-faint);
     opacity: 1;
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   UTILITIES — the glass & neon kit
+   UTILITIES — the editorial kit
+
+   Names are kept close to the previous system (`panel`, `pill`, `chip`,
+   `hud`) so components port with minimal churn, but every implementation
+   is new.
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ── Surfaces ──────────────────────────────────────────────────── */
 
 /*
- * The workhorse card. A 1px light hairline plus an inset top highlight
- * fakes a lit glass edge; depth comes from a soft black shadow, never a
- * hard offset one.
+ * The workhorse card. A hairline and a whisper of shadow — the intent is
+ * "a block of text on a page", not "a container in an app".
  */
 @utility panel {
-  background: linear-gradient(
-    to bottom,
-    var(--color-surface-2),
-    var(--color-surface)
-  );
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-  box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
-    0 1px 2px 0 rgb(0 0 0 / 0.6),
-    0 12px 32px -12px rgb(0 0 0 / 0.8);
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px 0 rgb(23 22 26 / 0.03);
 }
 
+/* Borderless variant: separation by whitespace alone. */
 @utility panel-flat {
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-tile);
+  border-radius: 6px;
 }
 
-/* Recessed well — inputs, quoted evidence, code. */
+/* Recessed well for inputs and pull-quotes. */
 @utility panel-sunk {
-  background: var(--color-void-deep);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-tile);
-  box-shadow: inset 0 2px 8px 0 rgb(0 0 0 / 0.55);
+  background: var(--color-sunk);
+  border: 1px solid var(--color-rule);
+  border-radius: 4px;
 }
-
-/* ── Neon edges ────────────────────────────────────────────────── */
 
 /*
- * `edge-*` tints a panel's border and lays a coloured bloom outside it.
- * This is how a card announces its verdict without a stamp.
+ * Accent edge. A 3px rule down the left side, the way a print layout
+ * marks a callout. Replaces the previous system's glow entirely.
  */
 @utility edge-red {
-  border-color: rgb(255 46 126 / 0.55);
-  box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
-    0 0 0 1px rgb(255 46 126 / 0.12),
-    0 0 28px -6px rgb(255 46 126 / 0.45);
+  border-left: 3px solid var(--color-verdict-red);
 }
 
 @utility edge-green {
-  border-color: rgb(180 255 57 / 0.5);
-  box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
-    0 0 0 1px rgb(180 255 57 / 0.12),
-    0 0 28px -6px rgb(180 255 57 / 0.4);
+  border-left: 3px solid var(--color-verdict-green);
 }
 
-@utility edge-judge {
-  border-color: rgb(61 224 255 / 0.5);
-  box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
-    0 0 0 1px rgb(61 224 255 / 0.12),
-    0 0 28px -6px rgb(61 224 255 / 0.4);
+@utility edge-split {
+  border-left: 3px solid var(--color-verdict-split);
 }
 
 @utility edge-pro {
-  border-color: rgb(157 92 255 / 0.5);
-  box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
-    0 0 28px -6px rgb(157 92 255 / 0.45);
-}
-
-/* Text bloom. Small doses only — glowing body copy is unreadable. */
-@utility glow-red {
-  text-shadow: 0 0 18px rgb(255 46 126 / 0.65);
-}
-
-@utility glow-green {
-  text-shadow: 0 0 18px rgb(180 255 57 / 0.6);
-}
-
-@utility glow-judge {
-  text-shadow: 0 0 18px rgb(61 224 255 / 0.6);
-}
-
-/* ── Chrome type ───────────────────────────────────────────────── */
-
-/*
- * Brushed-metal fill for the wordmark and verdict words. Needs a
- * background-clip fallback colour or the text vanishes where unsupported.
- */
-@utility chrome {
-  color: var(--color-chalk);
-
-  @supports (-webkit-background-clip: text) or (background-clip: text) {
-    background: linear-gradient(
-      180deg,
-      #ffffff 0%,
-      #cfc9f0 32%,
-      #7d76a8 52%,
-      #ffffff 68%,
-      #b9b2dd 100%
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    /* Fine dark keyline so chrome does not dissolve into the void. */
-    -webkit-text-stroke: 0.6px rgb(0 0 0 / 0.35);
-  }
-}
-
-@utility chrome-live {
-  background-size: 200% auto;
-  animation: var(--animate-shimmer);
+  border-left: 3px solid var(--color-pro);
 }
 
 /* ── Actions ───────────────────────────────────────────────────── */
 
 /*
- * Pill button base. Geometry is the main departure from the sibling
- * project, so it is deliberately fully rounded.
+ * Buttons are rectangular with a 3px radius — closer to a printed form
+ * field than to a pill. The previous direction used 999px pills, so this
+ * is a deliberate departure.
  */
 @utility pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5em;
-  border-radius: var(--radius-pill);
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: -0.006em;
   white-space: nowrap;
   transition:
-    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 140ms ease-out,
-    filter 140ms ease-out;
-
-  &:active {
-    /* Compress, do not translate — translation is the sibling's press. */
-    transform: scale(0.96);
-  }
+    background-color 140ms ease-out,
+    border-color 140ms ease-out,
+    color 140ms ease-out,
+    opacity 140ms ease-out;
 
   &:disabled {
-    opacity: 0.45;
-    filter: saturate(0.4);
+    opacity: 0.42;
+    cursor: not-allowed;
   }
 }
 
-/* Filled neon action: solid colour, dark text, coloured bloom beneath. */
-@utility pill-red {
-  background: var(--color-flag-red);
-  color: #1a0009;
-  box-shadow: 0 6px 24px -6px rgb(255 46 126 / 0.75);
+/* Primary. Solid ink — the accent red is reserved for verdicts. */
+@utility pill-ink {
+  background: var(--color-ink);
+  color: var(--color-page);
 
   &:hover:not(:disabled) {
-    box-shadow: 0 10px 30px -6px rgb(255 46 126 / 0.9);
-    filter: brightness(1.08);
+    background: #000;
+  }
+}
+
+/* Used only where the action *is* the red flag. */
+@utility pill-red {
+  background: var(--color-verdict-red);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #96181f;
   }
 }
 
 @utility pill-green {
-  background: var(--color-flag-green);
-  color: #101a00;
-  box-shadow: 0 6px 24px -6px rgb(180 255 57 / 0.7);
+  background: var(--color-verdict-green);
+  color: #fff;
 
   &:hover:not(:disabled) {
-    box-shadow: 0 10px 30px -6px rgb(180 255 57 / 0.85);
-    filter: brightness(1.08);
+    background: #17573a;
   }
 }
 
-@utility pill-judge {
-  background: var(--color-judge);
-  color: #001820;
-  box-shadow: 0 6px 24px -6px rgb(61 224 255 / 0.7);
+/* Secondary: hairline outline on paper. */
+@utility pill-outline {
+  background: transparent;
+  border: 1px solid var(--color-rule-strong);
+  color: var(--color-ink);
 
   &:hover:not(:disabled) {
-    box-shadow: 0 10px 30px -6px rgb(61 224 255 / 0.85);
-    filter: brightness(1.08);
-  }
-}
-
-/* Glass action — secondary weight. */
-@utility pill-glass {
-  background: rgb(255 255 255 / 0.06);
-  border: 1px solid var(--color-line-bright);
-  color: var(--color-chalk);
-  backdrop-filter: blur(12px);
-
-  &:hover:not(:disabled) {
-    background: rgb(255 255 255 / 0.1);
-    border-color: var(--color-judge);
+    border-color: var(--color-ink);
+    background: var(--color-wash);
   }
 }
 
 @utility pill-ghost {
   background: transparent;
-  color: var(--color-chalk-dim);
+  color: var(--color-ink-muted);
 
   &:hover:not(:disabled) {
-    background: rgb(255 255 255 / 0.06);
-    color: var(--color-chalk);
+    color: var(--color-ink);
+    background: var(--color-wash);
   }
 }
 
-/* ── HUD chrome ────────────────────────────────────────────────── */
+/* ── Editorial furniture ───────────────────────────────────────── */
 
-/* Monospace metadata voice: case numbers, timers, counts. */
+/*
+ * Small-caps metadata line: case numbers, timestamps, section labels.
+ * The letterspaced-sans-uppercase used at SMALL sizes is a magazine
+ * convention — distinct from using it for display type.
+ */
 @utility hud {
-  font-family: var(--font-hud);
+  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--color-chalk-faint);
+  letter-spacing: 0.1em;
+  color: var(--color-ink-faint);
   font-variant-numeric: tabular-nums;
 }
 
-/* Small rounded tag. Replaces the sibling's masking tape entirely. */
+/* Byline-ish label, sentence case, for softer metadata. */
+@utility meta {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+/* Inline tag. Understated: no fill by default, just a hairline. */
 @utility chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.4em;
-  padding: 0.3em 0.75em;
-  border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.07);
-  border: 1px solid var(--color-line);
-  font-family: var(--font-hud);
-  font-size: 10px;
+  gap: 0.35em;
+  padding: 0.15em 0.55em;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-size: 11px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--color-chalk-dim);
+  letter-spacing: 0.02em;
+  color: var(--color-ink-muted);
+  background: transparent;
 }
 
 @utility chip-red {
-  background: rgb(255 46 126 / 0.14);
-  border-color: rgb(255 46 126 / 0.4);
-  color: var(--color-flag-red);
+  border-color: color-mix(in oklab, var(--color-verdict-red) 34%, transparent);
+  background: var(--color-verdict-red-soft);
+  color: var(--color-verdict-red);
 }
 
 @utility chip-green {
-  background: rgb(180 255 57 / 0.13);
-  border-color: rgb(180 255 57 / 0.38);
-  color: var(--color-flag-green);
+  border-color: color-mix(in oklab, var(--color-verdict-green) 32%, transparent);
+  background: var(--color-verdict-green-soft);
+  color: var(--color-verdict-green);
 }
 
-@utility chip-judge {
-  background: rgb(61 224 255 / 0.13);
-  border-color: rgb(61 224 255 / 0.38);
-  color: var(--color-judge);
+@utility chip-split {
+  border-color: color-mix(in oklab, var(--color-verdict-split) 32%, transparent);
+  background: var(--color-verdict-split-soft);
+  color: var(--color-verdict-split);
 }
 
 @utility chip-heat {
-  background: rgb(255 182 39 / 0.14);
-  border-color: rgb(255 182 39 / 0.4);
+  border-color: color-mix(in oklab, var(--color-heat) 34%, transparent);
   color: var(--color-heat);
 }
 
 @utility chip-pro {
-  background: rgb(157 92 255 / 0.16);
-  border-color: rgb(157 92 255 / 0.45);
-  color: #c9a6ff;
+  border-color: color-mix(in oklab, var(--color-pro) 38%, transparent);
+  background: var(--color-pro-soft);
+  color: var(--color-pro);
 }
 
-/* Hairline divider. 1px gradient that fades at both ends. */
+/* Hairline divider. Full-strength, unlike the previous faded gradient. */
 @utility hairline {
   height: 1px;
   border: 0;
-  background: linear-gradient(
-    to right,
-    transparent,
-    var(--color-line-bright) 18%,
-    var(--color-line-bright) 82%,
-    transparent
-  );
+  background: var(--color-rule);
+}
+
+/* Heavier section break, the way a magazine separates departments. */
+@utility rule-strong {
+  height: 2px;
+  border: 0;
+  background: var(--color-ink);
 }
 
 /* ── Devices ───────────────────────────────────────────────────── */
 
-/*
- * Redaction: a blurred neon bar rather than a solid black block, so it
- * reads as digitally scrubbed instead of marker-penned.
- */
+/* Redaction: a solid ink bar, the way a released document is censored. */
 @utility redact {
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-3),
-    var(--color-surface-2)
-  );
+  background: var(--color-ink);
   color: transparent;
   user-select: none;
-  padding: 0 0.35em;
-  border-radius: 4px;
-  box-shadow: inset 0 0 0 1px var(--color-line-bright);
+  padding: 0 0.3em;
+  border-radius: 1px;
 }
 
-/* Cyan underline sweep for emphasis. Replaces the yellow highlighter. */
-@utility underglow {
-  background-image: linear-gradient(
-    to right,
-    var(--color-judge),
-    var(--color-flag-red)
-  );
-  background-repeat: no-repeat;
-  background-position: 0 100%;
-  background-size: 100% 2px;
-  padding-bottom: 0.06em;
+/* Drop cap for the opening paragraph of a case. Pure editorial signal. */
+@utility dropcap {
+  &::first-letter {
+    float: left;
+    font-family: var(--font-display);
+    font-size: 3.1em;
+    line-height: 0.82;
+    font-weight: 600;
+    padding-right: 0.07em;
+    padding-top: 0.06em;
+    color: var(--color-verdict-red);
+  }
 }
 
-/* Scanline strip for live cases. Parent needs relative + overflow-hidden. */
-@utility scanline {
-  position: absolute;
-  inset-inline: 0;
-  height: 28%;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgb(61 224 255 / 0.07),
-    transparent
-  );
-  animation: var(--animate-scan);
+/* Pull-quote: the roast, set large with a heavy left rule. */
+@utility pullquote {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 3.2vw, 1.5rem);
+  font-weight: 500;
+  line-height: 1.34;
+  letter-spacing: -0.014em;
+  border-left: 3px solid var(--color-ink);
+  padding-left: 1.1rem;
 }
 
-/* Fine grid, for the docket backdrop. Not a dot screen. */
-@utility gridlines {
-  background-image:
-    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
-  background-size: 32px 32px;
+/* Long-form reading measure for case bodies. */
+@utility prose-case {
+  font-family: var(--font-read);
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  letter-spacing: -0.003em;
+  color: var(--color-ink);
 }
 
-/* ── Layout ────────────────────────────────────────────────────── */
+/* ── Layout: narrow measure, generous margins ──────────────────── */
 
 @utility court-container {
   width: 100%;
-  max-width: 40rem; /* 640px single-column feed */
+  /* ~62ch at the body size: a genuine reading measure, not an app column. */
+  max-width: 38rem;
   margin-inline: auto;
-  padding-inline: 1rem;
+  padding-inline: 1.25rem;
 }
 
 @utility court-container-wide {
   width: 100%;
-  max-width: 66rem;
+  max-width: 60rem;
   margin-inline: auto;
-  padding-inline: 1rem;
+  padding-inline: 1.25rem;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    ACCESSIBILITY — reduced motion
-   Honours the OS setting AND a manual toggle (html.reduce-motion).
    ═══════════════════════════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -632,91 +517,82 @@ html.reduce-motion *::after {
 }
 
 /*
- * Reduced motion must not strand the verdict mid-flight, blurred and
- * pushed 120px toward the viewer. Force the resting state.
+ * Entrance animations must not strand content mid-flight when motion is
+ * reduced — force the resting state explicitly.
  */
 @media (prefers-reduced-motion: reduce) {
-  .animate-verdict-in {
+  .animate-fade-up,
+  .animate-fade-in {
     transform: none !important;
     opacity: 1 !important;
-    filter: none !important;
+  }
+
+  .animate-rule-draw,
+  .animate-bar-fill {
+    transform: none !important;
+    clip-path: none !important;
   }
 }
 
-html.reduce-motion .animate-verdict-in {
+html.reduce-motion .animate-fade-up,
+html.reduce-motion .animate-fade-in {
   transform: none !important;
   opacity: 1 !important;
-  filter: none !important;
 }
 
-/* An infinitely scanning strip is exactly what this setting is for. */
-@media (prefers-reduced-motion: reduce) {
-  .scanline {
-    display: none !important;
-  }
-}
-
-html.reduce-motion .scanline {
-  display: none !important;
+html.reduce-motion .animate-rule-draw,
+html.reduce-motion .animate-bar-fill {
+  transform: none !important;
+  clip-path: none !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SCROLLBAR — thin neon pill
+   SCROLLBAR
    ═══════════════════════════════════════════════════════════════════ */
 
 @supports selector(::-webkit-scrollbar) {
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--color-void-deep);
+    background: var(--color-page);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-line-bright);
-    border-radius: var(--radius-pill);
-    border: 2px solid var(--color-void-deep);
+    background: var(--color-rule-strong);
+    border-radius: 999px;
+    border: 3px solid var(--color-page);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-judge);
+    background: var(--color-ink-faint);
   }
 }
 
-/* Firefox has no pseudo-elements for this; use the standard property. */
 @supports (scrollbar-color: auto) {
   html {
-    scrollbar-color: var(--color-line-bright) var(--color-void-deep);
+    scrollbar-color: var(--color-rule-strong) var(--color-page);
     scrollbar-width: thin;
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PRINT — invert to ink-on-white so a printed verdict is legible
+   PRINT — the page is already ink-on-paper, so this is nearly free
    ═══════════════════════════════════════════════════════════════════ */
 
 @media print {
   body {
     background: #fff;
-    color: #000;
-    background-image: none;
   }
 
   .panel,
   .panel-flat,
   .panel-sunk {
-    background: #fff;
     border: 1px solid #000;
     box-shadow: none;
-  }
-
-  .chrome {
-    background: none;
-    color: #000;
-    -webkit-text-fill-color: #000;
-    -webkit-text-stroke: 0;
+    background: #fff;
   }
 
   .no-print {

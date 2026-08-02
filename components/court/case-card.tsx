@@ -5,13 +5,14 @@ import { formatCaseNo, voteSplit, compactCount, excerpt, cn } from '@/lib/utils'
 import { CATEGORY_LABELS, VERDICT_LABELS, type CaseView } from '@/lib/types';
 
 /**
- * One row on the docket.
+ * One entry in the record.
  *
- * Two presentations from one component: an open case leads with the story and a
- * countdown, a closed case leads with the neon verdict. Keeping them together
- * means the feed never looks like two different products.
+ * Structured like an article teaser: metadata line, serif headline, standfirst,
+ * then the jury data as a footnote. Two presentations from one component — an
+ * open case leads with the story, a closed case leads with the ruling — so the
+ * feed never looks like two different products.
  *
- * The whole card is one link target — the feed is for scanning, the case page is
+ * The whole entry is one link target: the feed is for scanning, the case page is
  * for deciding.
  */
 export function CaseCard({
@@ -35,27 +36,26 @@ export function CaseCard({
       ? 'red'
       : verdict?.verdict === 'green'
         ? 'green'
-        : 'judge';
+        : 'split';
 
   return (
     <Link
       href={`/case/${caseData.publicId}`}
       className={cn(
-        'panel group relative block overflow-hidden p-5 transition-transform duration-200',
-        'hover:-translate-y-0.5 active:scale-[0.995]',
+        'group block bg-surface px-5 py-6 transition-colors duration-150',
+        'hover:bg-sunk',
+        // Only ruled cases earn an accent rule; open ones stay neutral so the
+        // eye lands on verdicts when scanning.
         verdict && tone === 'red' && 'edge-red',
         verdict && tone === 'green' && 'edge-green',
-        verdict && tone === 'judge' && 'edge-judge'
+        verdict && tone === 'split' && 'edge-split'
       )}
     >
-      {/* Live cases get a slow scanline: "session in progress". */}
-      {isOpen && <span className="scanline" />}
-
-      {/* Header row */}
-      <div className="relative flex items-start justify-between gap-3">
-        <span className="flex items-center gap-2">
+      {/* Metadata line */}
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2.5">
           {rank !== undefined && (
-            <span className="flex size-6 items-center justify-center rounded-full bg-surface-3 font-hud text-[10px] font-bold text-chalk">
+            <span className="font-display text-lg font-semibold leading-none text-verdict-red">
               {rank}
             </span>
           )}
@@ -63,82 +63,83 @@ export function CaseCard({
         </span>
 
         {isOpen ? (
-          <span className="flex items-center gap-1.5 font-hud text-[10px] font-medium uppercase tracking-[0.16em] text-flag-red">
+          <span className="hud inline-flex items-center gap-1.5 text-verdict-red">
             <LiveDot />
             {caseData.status === 'judging' ? (
-              'judging'
+              'Judging'
             ) : (
               <>
-                <Timer className="size-3" strokeWidth={2.5} aria-hidden />
-                {remaining ?? 'closing'}
+                <Timer className="size-3" strokeWidth={2} aria-hidden />
+                {remaining ?? 'Closing'}
               </>
             )}
           </span>
         ) : (
-          <span className="flex items-center gap-1.5 font-hud text-[10px] font-medium uppercase tracking-[0.16em] text-chalk-faint">
-            <Gavel className="size-3" strokeWidth={2.5} aria-hidden />
-            ruled
+          <span className="hud inline-flex items-center gap-1.5">
+            <Gavel className="size-3" strokeWidth={2} aria-hidden />
+            Ruled
           </span>
         )}
       </div>
 
-      <div className="relative mt-3 flex flex-wrap items-center gap-2">
+      {/* Headline */}
+      <h2 className="mt-2.5 font-display text-[clamp(1.25rem,4.2vw,1.5rem)] font-semibold leading-[1.12] tracking-[-0.022em] text-ink underline-offset-[3px] group-hover:underline">
+        {caseData.title}
+      </h2>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <Chip>{CATEGORY_LABELS[caseData.category]}</Chip>
         {caseData.toxicity !== null && caseData.toxicity >= 70 && (
           <Chip tone="heat">
-            <Flame className="size-3" strokeWidth={2.5} aria-hidden />
+            <Flame className="size-3" strokeWidth={2} aria-hidden />
             {caseData.toxicity}
           </Chip>
         )}
       </div>
 
-      <h2 className="relative mt-3 font-display text-[clamp(1.3rem,4.6vw,1.6rem)] font-bold leading-[1.06] tracking-[-0.035em] text-chalk">
-        {caseData.title}
-      </h2>
-
       {/* Closed cases lead with the ruling; open cases show the story. */}
       {verdict ? (
-        <div className="relative mt-4">
+        <div className="mt-3.5">
           <VerdictBadge tone={tone}>
             {VERDICT_LABELS[verdict.verdict]}
           </VerdictBadge>
-          <p className="mt-3 border-l-2 border-judge/50 pl-3 text-sm leading-relaxed text-chalk-dim">
+          <p className="mt-1.5 font-read text-[15px] italic leading-relaxed text-ink-muted">
             {excerpt(verdict.roast, 132)}
           </p>
         </div>
       ) : (
-        <p className="relative mt-2.5 text-sm leading-relaxed text-chalk-dim">
+        <p className="mt-2.5 font-read text-[15px] leading-relaxed text-ink-muted">
           {excerpt(caseData.body, 152)}
         </p>
       )}
 
-      {/* Jury split */}
-      <div className="relative mt-5">
-        <div className="mb-2 flex items-center justify-between font-hud text-[10px] font-medium uppercase tracking-[0.16em]">
-          <span className="text-flag-red">
-            {split.hasVotes ? `${split.red}%` : '—'}
-          </span>
-          <span className="flex items-center gap-1.5 text-chalk-faint">
-            <Users className="size-3" strokeWidth={2.5} aria-hidden />
-            {compactCount(ballots)}
-          </span>
-          <span className="text-flag-green">
-            {split.hasVotes ? `${split.green}%` : '—'}
-          </span>
-        </div>
+      {/* Jury data, as a footnote */}
+      <div className="mt-4">
         <SplitBar
           redPct={split.red}
           greenPct={split.green}
           hasVotes={split.hasVotes}
         />
+        <div className="mt-1.5 flex items-center justify-between hud">
+          <span className="text-verdict-red">
+            {split.hasVotes ? `${split.red}% red` : 'No votes'}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Users className="size-3" strokeWidth={2} aria-hidden />
+            {compactCount(ballots)}
+          </span>
+          <span className="text-verdict-green">
+            {split.hasVotes ? `${split.green}% green` : '—'}
+          </span>
+        </div>
       </div>
 
       {/* Where the viewer stands */}
       {(caseData.myVote || caseData.isAuthor) && (
-        <p className="relative mt-3 font-hud text-[10px] font-medium uppercase tracking-[0.16em] text-chalk-faint">
+        <p className="mt-3 hud">
           {caseData.isAuthor
-            ? 'your case'
-            : `you voted ${caseData.myVote === 'red' ? 'red flag' : 'green flag'}`}
+            ? 'Your case'
+            : `You voted ${caseData.myVote === 'red' ? 'red flag' : 'green flag'}`}
         </p>
       )}
     </Link>

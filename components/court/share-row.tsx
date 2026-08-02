@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Share2, Download, Link2, Check } from 'lucide-react';
 import { NeonButton } from '@/components/ui/neon';
@@ -23,13 +23,24 @@ export function ShareRow({
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const url =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/case/${caseId}`
-      : `/case/${caseId}`;
+  /*
+   * Both of these depend on browser APIs, so they must NOT be read during render.
+   *
+   * Doing so caused a real hydration mismatch (React #418): the server has no
+   * `navigator`, so the Share button was absent from the SSR HTML, but Chromium
+   * exposes `navigator.share`, so the client's first render included it. React
+   * then found a tree it did not expect and discarded the server markup.
+   *
+   * Deferring to an effect means the first client render matches the server
+   * exactly, and the button appears once hydration is complete.
+   */
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  const [url, setUrl] = useState(`/case/${caseId}`);
 
-  const canNativeShare =
-    typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  useEffect(() => {
+    setUrl(`${window.location.origin}/case/${caseId}`);
+    setCanNativeShare(typeof navigator.share === 'function');
+  }, [caseId]);
 
   async function nativeShare() {
     try {
@@ -86,26 +97,26 @@ export function ShareRow({
     <div className="no-print flex flex-wrap gap-2.5">
       {canNativeShare && (
         <NeonButton variant="red" onClick={nativeShare}>
-          <Share2 className="size-4" strokeWidth={2.25} aria-hidden />
+          <Share2 className="size-4" strokeWidth={2} aria-hidden />
           Share
         </NeonButton>
       )}
 
       <NeonButton
-        variant="judge"
+        variant="ink"
         onClick={downloadCard}
         disabled={downloading}
         aria-busy={downloading}
       >
-        <Download className="size-4" strokeWidth={2.25} aria-hidden />
+        <Download className="size-4" strokeWidth={2} aria-hidden />
         {downloading ? 'Saving…' : 'Save card'}
       </NeonButton>
 
-      <NeonButton variant="glass" onClick={copyLink}>
+      <NeonButton variant="outline" onClick={copyLink}>
         {copied ? (
-          <Check className="size-4" strokeWidth={2.5} aria-hidden />
+          <Check className="size-4" strokeWidth={2} aria-hidden />
         ) : (
-          <Link2 className="size-4" strokeWidth={2.25} aria-hidden />
+          <Link2 className="size-4" strokeWidth={2} aria-hidden />
         )}
         {copied ? 'Copied' : 'Copy link'}
       </NeonButton>

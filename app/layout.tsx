@@ -1,43 +1,44 @@
 import type { Metadata, Viewport } from 'next';
-import {
-  Bricolage_Grotesque,
-  Azeret_Mono,
-  Plus_Jakarta_Sans,
-} from 'next/font/google';
+import { Fraunces, Newsreader, Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import './globals.css';
 
 /*
  * Three faces, three jobs:
- *  - Bricolage Grotesque — display. Variable, wide, a little unhinged. Used in
- *    MIXED CASE, which is the point: the sibling newsprint project owns
- *    condensed all-caps display type, so this must not go near it.
- *  - Azeret Mono — HUD voice for case numbers, timers, counts. Squarer and more
- *    technical than Space Mono.
- *  - Plus Jakarta Sans — body. Rounder terminals than Inter, reads friendlier on
- *    a dark background.
+ *  - Fraunces — display. A high-contrast serif with optical-size and "soft"
+ *    axes, used in SENTENCE CASE. The whole look rests on this: it is what makes
+ *    the page read as an editorial feature rather than as an interface, and it is
+ *    the clearest break from the all-caps display faces used in earlier attempts.
+ *  - Newsreader — long-form case bodies. A reading serif, not a UI face; it makes
+ *    a 900-character story feel like an article instead of a form field.
+ *  - Inter — UI furniture: labels, buttons, metadata, and anything numeric.
  *
- * The .ttf files in `assets/` are what Satori uses for share cards; next/font is
+ * The font files in `assets/` are what Satori uses for share cards; next/font is
  * unavailable to the image renderer, so the two sets must stay in sync.
  */
-const bricolage = Bricolage_Grotesque({
+const fraunces = Fraunces({
   subsets: ['latin'],
-  weight: ['600', '700', '800'],
-  variable: '--font-bricolage',
+  // Variable weight, not a static list: `axes` and an explicit `weight` are
+  // mutually exclusive in next/font, and we need the axes to tame Fraunces'
+  // default wonk.
+  weight: 'variable',
+  variable: '--font-fraunces',
+  display: 'swap',
+  axes: ['SOFT', 'WONK', 'opsz'],
+});
+
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  style: ['normal', 'italic'],
+  variable: '--font-newsreader',
   display: 'swap',
 });
 
-const azeretMono = Azeret_Mono({
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  variable: '--font-azeret',
-  display: 'swap',
-});
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-jakarta',
+  weight: ['400', '500', '600'],
+  variable: '--font-inter',
   display: 'swap',
 });
 
@@ -77,11 +78,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#07060C',
+  // Matches --color-page so mobile browser chrome blends into the paper.
+  themeColor: '#FBFAF7',
   width: 'device-width',
   initialScale: 1,
-  // Dark-first: keeps the browser chrome from flashing white on load.
-  colorScheme: 'dark',
+  colorScheme: 'light',
 };
 
 export default function RootLayout({
@@ -90,7 +91,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bricolage.variable} ${azeretMono.variable} ${jakarta.variable}`}
+      className={`${fraunces.variable} ${newsreader.variable} ${inter.variable}`}
     >
       <body className="antialiased">
         {children}
@@ -98,13 +99,12 @@ export default function RootLayout({
           position="bottom-center"
           toastOptions={{
             style: {
-              background: 'rgba(26, 23, 40, 0.92)',
-              color: '#F5F2FF',
-              border: '1px solid #423A63',
-              borderRadius: '14px',
-              boxShadow: '0 12px 40px -8px rgba(0, 0, 0, 0.9)',
-              backdropFilter: 'blur(16px)',
-              fontFamily: 'var(--font-jakarta), system-ui, sans-serif',
+              background: '#FFFFFF',
+              color: '#17161A',
+              border: '1px solid #CDC7BA',
+              borderRadius: '4px',
+              boxShadow: '0 6px 24px -8px rgba(23, 22, 26, 0.18)',
+              fontFamily: 'var(--font-inter), system-ui, sans-serif',
               fontWeight: 500,
             },
           }}

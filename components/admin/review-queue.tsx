@@ -29,17 +29,17 @@ export function ReviewQueue({ cases }: { cases: QueuedCase[] }) {
   if (cases.length === 0) {
     return (
       <Panel className="p-10 text-center">
-        <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-flag-green-deep ring-1 ring-flag-green/40">
+        <span className="mx-auto flex size-14 items-center justify-center rounded-[3px] bg-verdict-green-soft ring-1 ring-verdict-green/30">
           <ShieldCheck
-            className="size-6 text-flag-green"
-            strokeWidth={2.25}
+            className="size-6 text-verdict-green"
+            strokeWidth={2}
             aria-hidden
           />
         </span>
-        <h2 className="mt-5 font-display text-2xl font-bold tracking-[-0.04em] text-chalk">
+        <h2 className="mt-5 font-display text-2xl font-semibold tracking-[-0.03em] text-ink">
           Queue is clear
         </h2>
-        <p className="mt-2 text-sm text-chalk-dim">
+        <p className="mt-2 text-sm text-ink-muted">
           Nothing reported, hidden, or awaiting review.
         </p>
       </Panel>
@@ -77,13 +77,13 @@ function ReviewRow({ item }: { item: QueuedCase }) {
 
   /*
    * Tone the panel edge by severity, so a triage pass can be done by scanning:
-   * hidden is already actioned (red), pending_review is waiting on a human (cyan).
+   * hidden is already actioned (red), pending_review is waiting on a human (split).
    */
   const tone =
     item.status === 'hidden'
       ? 'red'
       : item.status === 'pending_review'
-        ? 'judge'
+        ? 'split'
         : 'neutral';
 
   return (
@@ -93,12 +93,12 @@ function ReviewRow({ item }: { item: QueuedCase }) {
 
         {item.status === 'hidden' && <Chip tone="red">Hidden</Chip>}
         {item.status === 'pending_review' && (
-          <Chip tone="judge">Awaiting review</Chip>
+          <Chip tone="split">Awaiting review</Chip>
         )}
 
         {item.reportCount > 0 && (
           <Chip tone="red">
-            <Flag className="size-3" strokeWidth={2.5} aria-hidden />
+            <Flag className="size-3" strokeWidth={2} aria-hidden />
             {item.reportCount} report{item.reportCount === 1 ? '' : 's'}
           </Chip>
         )}
@@ -111,10 +111,10 @@ function ReviewRow({ item }: { item: QueuedCase }) {
         )}
       </div>
 
-      <h3 className="mt-3.5 font-display text-lg font-bold leading-snug tracking-[-0.03em] text-chalk">
+      <h3 className="mt-3.5 font-display text-lg font-semibold leading-snug tracking-[-0.03em] text-ink">
         {item.title}
       </h3>
-      <p className="mt-2 text-sm leading-relaxed text-chalk-dim">
+      <p className="mt-2 font-read text-sm leading-relaxed text-ink-muted">
         {excerpt(item.body, 320)}
       </p>
 
@@ -126,9 +126,9 @@ function ReviewRow({ item }: { item: QueuedCase }) {
             {item.reports.map((report, i) => (
               <li
                 key={i}
-                className="border-l-2 border-flag-red/60 pl-3 text-xs leading-relaxed text-chalk-dim"
+                className="border-l-2 border-verdict-red/60 pl-3 text-xs leading-relaxed text-ink-muted"
               >
-                <span className="font-hud font-medium uppercase tracking-[0.1em] text-flag-red">
+                <span className="hud text-verdict-red">
                   {REPORT_REASON_LABELS[report.reason as ReportReason] ??
                     report.reason}
                 </span>
@@ -143,7 +143,7 @@ function ReviewRow({ item }: { item: QueuedCase }) {
 
       {confirmRemove ? (
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium text-flag-red">
+          <p className="text-sm font-medium text-verdict-red">
             Remove this case and strike the author? At {MAX_STRIKES} strikes they
             lose filing rights.
           </p>
@@ -151,7 +151,7 @@ function ReviewRow({ item }: { item: QueuedCase }) {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Reason for the audit log (optional)"
-            className="panel-sunk p-2.5 text-sm text-chalk outline-none transition-colors focus:border-judge"
+            className="panel-sunk p-2.5 text-sm text-ink outline-none transition-colors focus:border-verdict-split"
           />
           <div className="flex flex-wrap gap-2.5">
             <NeonButton
@@ -162,7 +162,7 @@ function ReviewRow({ item }: { item: QueuedCase }) {
                 run(() => removeCase(item.id, note || undefined), 'Case removed')
               }
             >
-              <Trash2 className="size-4" strokeWidth={2.25} aria-hidden />
+              <Trash2 className="size-4" strokeWidth={2} aria-hidden />
               Confirm removal
             </NeonButton>
             <NeonButton
@@ -183,7 +183,7 @@ function ReviewRow({ item }: { item: QueuedCase }) {
               disabled={isPending}
               onClick={() => run(() => approveCase(item.id), 'Case published')}
             >
-              <Check className="size-4" strokeWidth={2.5} aria-hidden />
+              <Check className="size-4" strokeWidth={2} aria-hidden />
               Publish
             </NeonButton>
           )}
@@ -191,11 +191,11 @@ function ReviewRow({ item }: { item: QueuedCase }) {
           {item.status === 'live' && (
             <NeonButton
               size="sm"
-              variant="glass"
+              variant="outline"
               disabled={isPending}
               onClick={() => run(() => hideCase(item.id), 'Case hidden')}
             >
-              <EyeOff className="size-4" strokeWidth={2.25} aria-hidden />
+              <EyeOff className="size-4" strokeWidth={2} aria-hidden />
               Hide
             </NeonButton>
           )}
@@ -209,7 +209,7 @@ function ReviewRow({ item }: { item: QueuedCase }) {
                 run(() => dismissReports(item.id), 'Reports dismissed')
               }
             >
-              <Eye className="size-4" strokeWidth={2.25} aria-hidden />
+              <Eye className="size-4" strokeWidth={2} aria-hidden />
               Dismiss reports
             </NeonButton>
           )}
@@ -220,7 +220,7 @@ function ReviewRow({ item }: { item: QueuedCase }) {
             disabled={isPending}
             onClick={() => setConfirmRemove(true)}
           >
-            <Trash2 className="size-4" strokeWidth={2.25} aria-hidden />
+            <Trash2 className="size-4" strokeWidth={2} aria-hidden />
             Remove + strike
           </NeonButton>
         </div>

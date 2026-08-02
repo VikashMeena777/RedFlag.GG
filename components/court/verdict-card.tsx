@@ -1,4 +1,4 @@
-import { Gavel, Flame, Users, Scale } from 'lucide-react';
+import { Flame, Scale, Users } from 'lucide-react';
 import { VerdictBadge, SplitBar, HeatBar, Rule, Chip } from '@/components/ui/neon';
 import { formatCaseNo, voteSplit, compactCount, cn } from '@/lib/utils';
 import {
@@ -11,10 +11,15 @@ import {
 /**
  * The verdict card: the shareable unit.
  *
- * Mirrors lib/og/verdict-card.tsx so the on-screen version and the exported PNG
- * read as the same object.
+ * Set as a printed ruling rather than a UI card — heavy rule above the verdict,
+ * the ruling itself as the largest thing on the page in the display serif, then
+ * the roast as a pull-quote. At thumbnail size the *word* is what reads, which is
+ * the whole point of the editorial direction.
  *
- * The share controls deliberately live outside this component — nothing in here
+ * Mirrors lib/og/verdict-card.tsx so the on-screen version and the exported PNG
+ * are recognisably the same object.
+ *
+ * Share controls deliberately live outside this component — nothing in here
  * should appear in a screenshot except the ruling itself.
  */
 export function VerdictCard({ caseData }: { caseData: CaseView }) {
@@ -24,124 +29,104 @@ export function VerdictCard({ caseData }: { caseData: CaseView }) {
   const split = voteSplit(caseData.redWeight, caseData.greenWeight);
   const ballots = caseData.redVotes + caseData.greenVotes;
 
-  // `split` is a real verdict in this schema, not a failure mode, so it gets the
-  // judge's own cyan rather than error styling.
+  // `split` is a real outcome in this schema, not a failure mode.
   const tone =
     verdict.verdict === 'red'
       ? 'red'
       : verdict.verdict === 'green'
         ? 'green'
-        : 'judge';
+        : 'split';
 
   return (
-    <article
-      className={cn(
-        'panel relative overflow-hidden p-6 sm:p-8',
-        tone === 'red' && 'edge-red',
-        tone === 'green' && 'edge-green',
-        tone === 'judge' && 'edge-judge'
-      )}
-    >
-      {/* Verdict-coloured bloom behind the ruling. */}
-      <div
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute -top-24 left-1/2 h-56 w-[130%] -translate-x-1/2 rounded-full opacity-25 blur-3xl',
-          tone === 'red' && 'bg-flag-red',
-          tone === 'green' && 'bg-flag-green',
-          tone === 'judge' && 'bg-judge'
-        )}
-      />
-
-      {/* Header */}
-      <div className="relative flex items-start justify-between gap-3">
+    <article className="panel px-6 py-8 sm:px-9 sm:py-10">
+      {/* Slug line */}
+      <div className="flex items-center justify-between gap-3">
         <span className="hud">{formatCaseNo(caseData.publicId)}</span>
-        <span className="hud">
-          {CATEGORY_LABELS[caseData.category]}
-        </span>
+        <span className="hud">{CATEGORY_LABELS[caseData.category]}</span>
       </div>
 
-      {/* The story under review */}
-      <h1 className="relative mt-5 text-base font-semibold leading-snug text-chalk-dim sm:text-lg">
+      {/* The story under review, as a standfirst */}
+      <h1 className="mt-5 font-read text-[17px] leading-snug text-ink-muted">
         {caseData.title}
       </h1>
 
+      <Rule strong className="mt-7" />
+
       {/* The ruling */}
-      <p className="relative mt-7 font-hud text-[10px] font-medium uppercase tracking-[0.22em] text-chalk-faint">
-        The court finds
-      </p>
+      <p className="mt-6 hud">The court finds</p>
 
       <h2
         className={cn(
-          'relative mt-2 animate-verdict-in font-display text-[clamp(2rem,9vw,3.4rem)] font-extrabold leading-[0.95] tracking-[-0.045em]',
-          tone === 'red' && 'text-flag-red glow-red',
-          tone === 'green' && 'text-flag-green glow-green',
-          tone === 'judge' && 'text-judge glow-judge'
+          'mt-2 animate-fade-up font-display text-[clamp(2rem,8.5vw,3.25rem)] font-semibold leading-[1.02] tracking-[-0.03em]',
+          tone === 'red' && 'text-verdict-red',
+          tone === 'green' && 'text-verdict-green',
+          tone === 'split' && 'text-verdict-split'
         )}
       >
         {verdict.headline}
       </h2>
 
-      <div className="relative mt-4">
-        <VerdictBadge tone={tone} animate>
-          <Gavel className="size-3.5" strokeWidth={2.5} aria-hidden />
+      <div className="mt-3">
+        <VerdictBadge tone={tone}>
           {VERDICT_LABELS[verdict.verdict]}
         </VerdictBadge>
       </div>
 
-      {/* The roast — the quotable part */}
-      <blockquote className="panel-sunk relative mt-6 p-4 text-[15px] leading-relaxed text-chalk sm:text-base">
+      {/* The roast — the quotable part, set as a pull-quote */}
+      <blockquote className="pullquote mt-7 text-ink">
         {verdict.roast}
       </blockquote>
 
-      <Rule className="relative my-7" />
+      <Rule className="my-8" />
 
       {/* Jury split */}
-      <div className="relative">
-        <div className="mb-2 flex items-center justify-between font-hud text-[10px] font-medium uppercase tracking-[0.16em]">
-          <span className="text-flag-red">
-            {split.hasVotes ? `${split.red}% red` : 'no jury'}
-          </span>
-          <span className="flex items-center gap-1.5 text-chalk-faint">
-            <Users className="size-3" strokeWidth={2.5} aria-hidden />
-            {compactCount(ballots)} jurors
-          </span>
-          <span className="text-flag-green">
-            {split.hasVotes ? `${split.green}% green` : '—'}
-          </span>
-        </div>
+      <div>
         <SplitBar
           redPct={split.red}
           greenPct={split.green}
           hasVotes={split.hasVotes}
-          className="h-3"
+          className="h-1.5"
         />
+        <div className="mt-2 flex items-center justify-between hud">
+          <span className="text-verdict-red">
+            {split.hasVotes ? `${split.red}% red flag` : 'No jury'}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Users className="size-3" strokeWidth={2} aria-hidden />
+            {compactCount(ballots)} jurors
+          </span>
+          <span className="text-verdict-green">
+            {split.hasVotes ? `${split.green}% green` : '—'}
+          </span>
+        </div>
       </div>
 
-      {/* Footer: toxicity + record + which judge heard it */}
-      <div className="relative mt-7 flex flex-wrap items-end justify-between gap-5">
+      {/* Footer: toxicity, judge, record */}
+      <div className="mt-8 flex flex-wrap items-end justify-between gap-5">
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 font-hud text-[10px] font-medium uppercase tracking-[0.2em] text-chalk-faint">
-            <Flame className="size-3" strokeWidth={2.5} aria-hidden />
+          <p className="hud inline-flex items-center gap-1.5">
+            <Flame className="size-3" strokeWidth={2} aria-hidden />
             Toxicity {verdict.toxicity}/100
           </p>
           <HeatBar value={verdict.toxicity} className="mt-2 max-w-[180px]" />
         </div>
 
-        <Chip tone="judge">
-          <Scale className="size-3" strokeWidth={2.5} aria-hidden />
+        <Chip tone="split">
+          <Scale className="size-3" strokeWidth={2} aria-hidden />
           {PERSONA_LABELS[caseData.persona]}
         </Chip>
       </div>
 
       {verdict.summary && (
-        <p className="relative mt-5 text-sm font-medium text-chalk-dim">
+        <p className="mt-6 font-read text-[15px] italic leading-relaxed text-ink-muted">
           {verdict.summary}
         </p>
       )}
 
-      <p className="chrome relative mt-6 text-center font-display text-base font-bold tracking-[-0.04em]">
-        RedFlag.gg
+      <Rule className="mt-8" />
+
+      <p className="mt-4 text-center font-display text-base font-semibold tracking-[-0.025em] text-ink-faint">
+        RedFlag<span className="text-verdict-red">.gg</span>
       </p>
     </article>
   );

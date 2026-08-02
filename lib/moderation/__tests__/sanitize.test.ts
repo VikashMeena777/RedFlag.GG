@@ -108,9 +108,16 @@ describe('sanitizeText — bypass techniques', () => {
     expect(sanitizeText('</script >text')).toBe('text');
   });
 
-  it('escapes residual ampersands so nothing can be re-parsed', () => {
-    // &nbsp; is deliberately not decoded, so its & must be escaped.
-    expect(sanitizeText('a &nbsp; b')).toBe('a &amp;nbsp; b');
+  it('leaves a literal ampersand literal', () => {
+    /*
+     * Sanitisation happens on storage; escaping belongs at render, and React
+     * escapes text children already. Storing `&amp;` meant a user who wrote
+     * "me & my ex" saw the escape sequence on their own case page.
+     */
+    expect(sanitizeText('me & my ex')).toBe('me & my ex');
+    expect(sanitizeText('Q&A with my ex')).toBe('Q&A with my ex');
+    // Entities we deliberately do not decode keep their text form.
+    expect(sanitizeText('a &nbsp; b')).toBe('a &nbsp; b');
   });
 });
 
@@ -175,12 +182,14 @@ describe('sanitizeText — properties', () => {
     expect(result).not.toContain('>');
   });
 
-  test.prop([fc.string()])('output has no unescaped ampersand', (s) => {
-    const result = sanitizeText(s);
-    // Every & must be the start of the literal escape `&amp;`.
-    for (const match of result.matchAll(/&/g)) {
-      expect(result.slice(match.index, match.index + 5)).toBe('&amp;');
-    }
+  /*
+   * Safety does not depend on escaping `&`. `stripMarkup` runs to a fixed point
+   * and then deletes every remaining angle bracket, so a bare `&` cannot combine
+   * with anything to form a tag — it is inert in text. What matters is that no
+   * `&amp;` survives to be displayed literally to the user.
+   */
+  test.prop([fc.string()])('output never contains an escaped ampersand', (s) => {
+    expect(sanitizeText(s)).not.toMatch(/&amp;/i);
   });
 
   test.prop([fc.string()])('is idempotent', (s) => {

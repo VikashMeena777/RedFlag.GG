@@ -69,84 +69,86 @@ export default async function CasePage({
       : undefined;
 
   return (
-    <div className="court-container py-8">
+    <div className="court-container py-10">
       <Link
         href="/"
-        className="mb-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-chalk-dim transition-colors hover:text-judge"
+        className="mb-7 inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
       >
-        <ArrowLeft className="size-4" strokeWidth={2.25} aria-hidden />
-        Back to docket
+        <ArrowLeft className="size-3.5" strokeWidth={2} aria-hidden />
+        Back to the record
       </Link>
 
       {caseData.isOpen ? (
         <>
           {/* ── Case file ─────────────────────────────────────────── */}
-          <Panel className="relative overflow-hidden p-6 sm:p-8">
-            {/* Slow scanline: session in progress. */}
-            <span className="scanline" />
-
-            <div className="relative flex items-start justify-between gap-3">
+          <Panel className="px-6 py-8 sm:px-9 sm:py-10">
+            {/* Slug line */}
+            <div className="flex items-center justify-between gap-3">
               <span className="hud">{formatCaseNo(caseData.publicId)}</span>
-              <span className="flex items-center gap-1.5 font-hud text-[10px] font-medium uppercase tracking-[0.16em] text-flag-red">
+              <span className="hud inline-flex items-center gap-1.5 text-verdict-red">
                 {caseData.status === 'judging' ? (
                   <>
-                    <LiveDot tone="judge" />
-                    judging
+                    <LiveDot tone="split" />
+                    Judging
                   </>
                 ) : (
                   <>
-                    <Timer className="size-3" strokeWidth={2.5} aria-hidden />
-                    {remaining ?? 'closing'}
+                    <Timer className="size-3" strokeWidth={2} aria-hidden />
+                    {remaining ?? 'Closing'}
                   </>
                 )}
               </span>
             </div>
 
-            <div className="relative mt-4 flex flex-wrap items-center gap-2">
+            {/* Headline first, metadata beneath — article order. */}
+            <h1 className="mt-4 font-display text-[clamp(1.6rem,6vw,2.25rem)] font-semibold leading-[1.08] tracking-[-0.026em] text-ink">
+              {caseData.title}
+            </h1>
+
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <Chip>{CATEGORY_LABELS[caseData.category]}</Chip>
-              <Chip tone="judge">
-                <Scale className="size-3" strokeWidth={2.5} aria-hidden />
+              <Chip tone="split">
+                <Scale className="size-3" strokeWidth={2} aria-hidden />
                 {PERSONA_LABELS[caseData.persona]}
               </Chip>
             </div>
 
-            <h1 className="relative mt-4 font-display text-[clamp(1.7rem,6.5vw,2.4rem)] font-extrabold leading-[1] tracking-[-0.045em] text-chalk">
-              {caseData.title}
-            </h1>
+            <Rule className="my-7" />
 
-            <Rule className="relative my-6" />
-
-            <div className="relative whitespace-pre-wrap text-[15px] leading-relaxed text-chalk">
+            {/*
+              The story itself, set as an article: reading serif, generous
+              leading, and a drop cap on the opening letter. This is the one place
+              the case body gets full editorial treatment.
+            */}
+            <div className="prose-case dropcap whitespace-pre-wrap">
               {caseData.body}
             </div>
 
-            <Rule className="relative my-7" />
+            <Rule strong className="my-8" />
 
             {caseData.status === 'judging' ? (
-              <p className="relative text-center font-hud text-[11px] font-medium uppercase tracking-[0.18em] text-judge glow-judge">
+              <p className="text-center font-read text-[15px] italic text-verdict-split">
                 The judge is writing the verdict…
               </p>
             ) : (
-              <div className="relative">
-                <JuryBox
-                  caseId={caseData.publicId}
-                  initialRedWeight={caseData.redWeight}
-                  initialGreenWeight={caseData.greenWeight}
-                  initialBallots={caseData.redVotes + caseData.greenVotes}
-                  initialVote={caseData.myVote}
-                  disabled={caseData.isAuthor || !viewer.isSignedIn}
-                  disabledReason={voteDisabledReason}
-                />
-              </div>
+              <JuryBox
+                caseId={caseData.publicId}
+                initialRedWeight={caseData.redWeight}
+                initialGreenWeight={caseData.greenWeight}
+                initialBallots={caseData.redVotes + caseData.greenVotes}
+                initialVote={caseData.myVote}
+                disabled={caseData.isAuthor || !viewer.isSignedIn}
+                disabledReason={voteDisabledReason}
+              />
             )}
           </Panel>
 
-          <p className="mt-5 text-center font-hud text-[10px] font-medium uppercase tracking-[0.16em] text-chalk-faint">
+          <p className="mt-5 text-center hud">
             Gavel drops in {remaining ?? 'moments'} · {weightedTotal}/
             {VOTE_TARGET} weighted votes
           </p>
 
-          <div className="mt-6 flex justify-center">
+          <div className="mt-7 flex justify-center">
             <ReportButton
               caseId={caseData.publicId}
               canReport={viewer.canReport}
@@ -166,18 +168,18 @@ export default async function CasePage({
           </div>
 
           {/* The original story, secondary now that the ruling is in. */}
-          <details className="panel-flat group mt-6 p-5">
-            <summary className="cursor-pointer text-sm font-semibold text-chalk-dim transition-colors marker:text-judge hover:text-chalk">
-              Read the original case
+          <details className="panel-flat mt-7 border border-rule p-5">
+            <summary className="cursor-pointer text-sm font-medium text-ink-muted transition-colors marker:text-verdict-red hover:text-ink">
+              Read the original filing
             </summary>
-            <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-chalk">
+            <div className="prose-case mt-5 whitespace-pre-wrap">
               {caseData.body}
             </div>
           </details>
 
-          <div className="mt-7 flex flex-wrap items-center justify-between gap-4">
-            <Link href="/" className="pill pill-glass px-5 py-3 text-sm">
-              <Gavel className="size-4" strokeWidth={2.25} aria-hidden />
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+            <Link href="/" className="pill pill-outline px-4 py-2 text-sm">
+              <Gavel className="size-3.5" strokeWidth={2} aria-hidden />
               Judge another case
             </Link>
             <ReportButton

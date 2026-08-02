@@ -39,17 +39,15 @@ export const serverEnv = {
     return optional('NVIDIA_API_KEY');
   },
 
-  /**
-   * Whether the Supabase email template includes `{{ .Token }}`.
+  /*
+   * There is deliberately no `emailSendsCode` here.
    *
-   * Supabase ships ONE template for magic links and OTPs; it only contains a
-   * 6-digit code if you add that variable. Default template sends a link instead,
-   * which makes a code-entry UI look broken. Set to `false` if you keep the link
-   * template and the UI will tell users to click the link.
+   * It existed to tell the UI whether the Supabase email template contained
+   * `{{ .Token }}` (a code) or `{{ .ConfirmationURL }}` (a link). Verification is
+   * now magic-link only, which works with the stock template, so the flag and the
+   * class of "app looks broken because the email disagrees with the UI" bug it
+   * papered over are both gone.
    */
-  get emailSendsCode() {
-    return optional('SUPABASE_EMAIL_SENDS_CODE') !== 'false';
-  },
 
   /** Cashfree Payment Gateway. */
   get cashfreeEnv() {

@@ -3,13 +3,13 @@ import { Panel, Rule } from '@/components/ui/neon';
 /**
  * Skeleton primitives.
  *
- * Flat surface blocks with a soft pulse. Deliberately not shimmering gradients:
- * a travelling highlight on dark glass reads as a rendering artefact rather than
- * a loading state.
+ * Flat wash blocks with a soft pulse. Deliberately not shimmering gradients:
+ * a travelling highlight reads as a rendering artefact rather than a loading
+ * state, and it would break the editorial register.
  */
 function Bar({ className = '' }: { className?: string }) {
   return (
-    <div className={`animate-pulse rounded-md bg-surface-3 ${className}`} aria-hidden />
+    <div className={`animate-pulse rounded-[3px] bg-wash ${className}`} aria-hidden />
   );
 }
 
@@ -21,12 +21,12 @@ export function CaseCardSkeleton() {
         <Bar className="h-3 w-24" />
         <Bar className="h-3 w-16" />
       </div>
-      <Bar className="mt-4 h-6 w-28 rounded-full" />
+      <Bar className="mt-4 h-6 w-28" />
       <Bar className="mt-4 h-7 w-full" />
       <Bar className="mt-2 h-7 w-3/4" />
       <Bar className="mt-3.5 h-3 w-full" />
       <Bar className="mt-2 h-3 w-5/6" />
-      <Bar className="mt-5 h-2.5 w-full rounded-full" />
+      <Bar className="mt-5 h-2.5 w-full" />
     </Panel>
   );
 }
@@ -53,8 +53,8 @@ export function CaseSkeleton() {
         <Bar className="h-3 w-16" />
       </div>
       <div className="mt-4 flex gap-2">
-        <Bar className="h-6 w-24 rounded-full" />
-        <Bar className="h-6 w-28 rounded-full" />
+        <Bar className="h-6 w-24" />
+        <Bar className="h-6 w-28" />
       </div>
       <Bar className="mt-4 h-9 w-full" />
       <Bar className="mt-2 h-9 w-2/3" />
@@ -67,8 +67,8 @@ export function CaseSkeleton() {
       <Rule className="my-7" />
       {/* Jury box placeholder — two equal choice tiles. */}
       <div className="grid grid-cols-2 gap-3">
-        <Bar className="h-32 rounded-[var(--radius-card)]" />
-        <Bar className="h-32 rounded-[var(--radius-card)]" />
+        <Bar className="h-32 rounded-[3px]" />
+        <Bar className="h-32 rounded-[3px]" />
       </div>
     </Panel>
   );

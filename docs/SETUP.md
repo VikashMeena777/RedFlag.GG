@@ -80,7 +80,9 @@ Supabase Dashboard → Authentication → Sign In / Providers → enable
 **Anonymous sign-ins**.
 
 While you are there:
-- Enable **Email** provider with OTP (used for the anonymous → verified upgrade)
+- Enable the **Email** provider. No template editing is needed: verification is
+  magic-link only, so the stock `{{ .ConfirmationURL }}` template is correct.
+  Add `<your-site>/auth/confirm` to the redirect allowlist.
 - Optionally enable **Google** and add `http://localhost:3000/auth/callback` plus
   your production callback to the redirect allowlist
 - Recommended: enable **leaked password protection** under Authentication →

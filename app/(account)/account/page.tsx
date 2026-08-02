@@ -49,8 +49,8 @@ export default async function AccountPage({
   return (
     <div className="court-container py-10 sm:py-14">
       <p className="hud">Your standing</p>
-      <h1 className="mt-3 font-display text-[clamp(2.2rem,10vw,3.4rem)] font-extrabold leading-[0.95] tracking-[-0.05em]">
-        <span className="chrome">Account</span>
+      <h1 className="mt-3 font-display text-[clamp(2.2rem,10vw,3.4rem)] font-semibold leading-[1.02] tracking-[-0.03em] text-ink">
+        Account
       </h1>
 
       {/* Current tier */}
@@ -58,7 +58,7 @@ export default async function AccountPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="hud">Current tier</p>
-            <p className="mt-1.5 font-display text-2xl font-bold tracking-[-0.04em] text-chalk">
+            <p className="mt-1.5 font-display text-2xl font-semibold tracking-[-0.03em] text-ink">
               {viewer.isPro
                 ? 'RedFlag Pro'
                 : viewer.isVerified
@@ -69,17 +69,17 @@ export default async function AccountPage({
 
           {viewer.isPro ? (
             <Chip tone="pro">
-              <Crown className="size-3" strokeWidth={2.5} aria-hidden />
+              <Crown className="size-3" strokeWidth={2} aria-hidden />
               Pro
             </Chip>
           ) : viewer.isVerified ? (
             <Chip tone="green">
-              <ShieldCheck className="size-3" strokeWidth={2.5} aria-hidden />
+              <ShieldCheck className="size-3" strokeWidth={2} aria-hidden />
               Verified
             </Chip>
           ) : (
             <Chip>
-              <Vote className="size-3" strokeWidth={2.5} aria-hidden />
+              <Vote className="size-3" strokeWidth={2} aria-hidden />
               Juror
             </Chip>
           )}
@@ -90,20 +90,20 @@ export default async function AccountPage({
         <dl className="grid grid-cols-2 gap-5">
           <div>
             <dt className="hud">Vote weight</dt>
-            <dd className="mt-1 font-display text-xl font-bold text-judge">
+            <dd className="mt-1 font-display text-xl font-semibold tracking-[-0.03em] text-verdict-split">
               {TIER_VOTE_WEIGHT[viewer.tier]}&times;
             </dd>
           </div>
           <div>
             <dt className="hud">Cases per day</dt>
-            <dd className="mt-1 font-display text-xl font-bold text-chalk">
+            <dd className="mt-1 font-display text-xl font-semibold tracking-[-0.03em] text-ink">
               {Number.isFinite(dailyLimit) ? dailyLimit : '∞'}
             </dd>
           </div>
         </dl>
 
         {viewer.strikes > 0 && (
-          <p className="mt-5 border-l-2 border-flag-red pl-3 text-xs leading-relaxed text-chalk-dim">
+          <p className="mt-5 border-l-2 border-verdict-red pl-3 text-xs leading-relaxed text-ink-muted">
             {viewer.strikes} of your cases have been removed. Filing is disabled
             after 3.
           </p>
@@ -112,7 +112,7 @@ export default async function AccountPage({
 
       {/* Verification */}
       <Panel className="mt-4 p-6">
-        <h2 className="font-display text-xl font-bold tracking-[-0.035em] text-chalk">
+        <h2 className="font-display text-xl font-semibold tracking-[-0.03em] text-ink">
           {viewer.isVerified ? 'Verification' : 'Verify to file cases'}
         </h2>
         <Rule className="my-5" />
@@ -122,14 +122,14 @@ export default async function AccountPage({
       {/* RedFlag Pro */}
       <Panel className="mt-4 p-6">
         <div className="flex items-center gap-2.5">
-          <Crown className="size-5 text-pro" strokeWidth={2.25} aria-hidden />
-          <h2 className="font-display text-xl font-bold tracking-[-0.035em] text-chalk">
+          <Crown className="size-5 text-pro" strokeWidth={2} aria-hidden />
+          <h2 className="font-display text-xl font-semibold tracking-[-0.03em] text-ink">
             RedFlag Pro
           </h2>
         </div>
         <Rule className="my-5" />
 
-        <ul className="mb-6 space-y-2.5 text-sm leading-relaxed text-chalk-dim">
+        <ul className="mb-6 space-y-2.5 font-read text-sm leading-relaxed text-ink-muted">
           {[
             'Unlimited case filings',
             'Priority placement on the docket',
@@ -140,7 +140,7 @@ export default async function AccountPage({
             <li key={perk} className="flex items-start gap-2.5">
               <span
                 aria-hidden
-                className="mt-1.5 size-1.5 shrink-0 rounded-full bg-pro"
+                className="mt-2 size-1.5 shrink-0 bg-pro"
               />
               {perk}
             </li>
@@ -149,7 +149,7 @@ export default async function AccountPage({
 
         {viewer.isPro ? (
           <div className="flex flex-col gap-4">
-            <p className="text-sm font-medium text-flag-green">
+            <p className="text-sm font-medium text-verdict-green">
               You are on RedFlag Pro. Thanks for funding the court.
             </p>
             <CancelSubscriptionButton />
@@ -157,17 +157,17 @@ export default async function AccountPage({
         ) : viewer.isVerified ? (
           <SubscribeButton />
         ) : (
-          <p className="text-sm leading-relaxed text-chalk-dim">
+          <p className="text-sm leading-relaxed text-ink-muted">
             Verify your account first, then you can subscribe for &#8377;
             {PRO_PRICE_INR}/month.
           </p>
         )}
       </Panel>
 
-      <p className="mt-7 text-xs text-chalk-faint">
+      <p className="mt-7 text-xs text-ink-faint">
         <Link
           href="/rules"
-          className="text-judge underline-offset-4 hover:underline"
+          className="text-verdict-split underline-offset-4 hover:underline"
         >
           Court rules and privacy
         </Link>
