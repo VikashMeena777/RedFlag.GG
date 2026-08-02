@@ -66,7 +66,7 @@ export async function requestVerification(
           ok: false,
           error: error.message.toLowerCase().includes('already')
             ? 'That email is already registered. Use the link we send to sign in.'
-            : 'Could not send the link. Try again.',
+            : `Could not send link: ${error.message}`,
         };
       }
       return { ok: true };
@@ -78,7 +78,7 @@ export async function requestVerification(
     });
     if (error) {
       console.error('[auth] magic link send failed:', error.message);
-      return { ok: false, error: 'Could not send the link. Try again.' };
+      return { ok: false, error: `Could not send link: ${error.message}` };
     }
     return { ok: true };
   } catch (err) {
