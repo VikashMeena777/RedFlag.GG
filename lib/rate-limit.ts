@@ -29,7 +29,25 @@ function getRedis(): Redis | null {
 
   const url = serverEnv.upstashUrl;
   const token = serverEnv.upstashToken;
-  redis = url && token ? new Redis({ url, token }) : null;
+
+  // Validate before constructing — the Redis constructor throws on invalid URLs
+  // and that throw happens outside checkLimit's try-catch.
+  if (!url || !token || !url.startsWith('https')) {
+    if (url && !url.startsWith('https')) {
+      console.error(
+        `[rate-limit] UPSTASH_REDIS_REST_URL is invalid (must start with https, got "${url.slice(0, 8)}…"). Rate limiting disabled.`
+      );
+    }
+    redis = null;
+    return redis;
+  }
+
+  try {
+    redis = new Redis({ url, token });
+  } catch (err) {
+    console.error('[rate-limit] Failed to create Redis client:', err);
+    redis = null;
+  }
   return redis;
 }
 

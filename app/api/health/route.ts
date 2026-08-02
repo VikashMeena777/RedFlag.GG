@@ -35,7 +35,7 @@ export async function GET() {
   } as const;
 
   const rateLimiter: Check['status'] =
-    serverEnv.upstashUrl && serverEnv.upstashToken ? 'ok' : 'unconfigured';
+    serverEnv.upstashUrl?.startsWith('https') && serverEnv.upstashToken ? 'ok' : 'unconfigured';
 
   const cron: Check['status'] = serverEnv.cronSecret ? 'ok' : 'unconfigured';
 
