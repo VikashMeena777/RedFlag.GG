@@ -13,10 +13,19 @@ import { LiveDot } from '@/components/ui/neon';
  * column feeling like a document rather than an app.
  */
 export async function CourtHeader() {
-  const [viewer, openCount] = await Promise.all([
-    getViewer(),
-    getOpenCaseCount(),
-  ]);
+  let viewer: Awaited<ReturnType<typeof getViewer>>;
+  let openCount: number;
+  try {
+    [viewer, openCount] = await Promise.all([
+      getViewer(),
+      getOpenCaseCount(),
+    ]);
+  } catch (err) {
+    console.error('[chrome] CourtHeader data fetch failed:', err);
+    // Render with safe defaults so the layout never 500s.
+    viewer = { isPro: false } as Awaited<ReturnType<typeof getViewer>>;
+    openCount = 0;
+  }
 
   return (
     <header className="border-b border-rule bg-page">

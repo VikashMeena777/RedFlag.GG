@@ -73,76 +73,81 @@ const ANONYMOUS_VIEWER: Viewer = {
  * against the auth server, the latter trusts whatever is in the cookie.
  */
 export async function getViewer(): Promise<Viewer> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) return ANONYMOUS_VIEWER;
+    if (!user) return ANONYMOUS_VIEWER;
 
-  // Read the profile with the service client: `profiles` is self-readable only
-  // under RLS, and this avoids a policy round-trip on every render.
-  const admin = createServiceClient();
-  const { data: profile } = await admin
-    .from('profiles')
-    .select(
-      'handle, karma, is_admin, is_pro, pro_expires_at, is_banned, is_shadow_banned, strikes, created_at'
-    )
-    .eq('id', user.id)
-    .maybeSingle();
+    // Read the profile with the service client: `profiles` is self-readable only
+    // under RLS, and this avoids a policy round-trip on every render.
+    const admin = createServiceClient();
+    const { data: profile } = await admin
+      .from('profiles')
+      .select(
+        'handle, karma, is_admin, is_pro, pro_expires_at, is_banned, is_shadow_banned, strikes, created_at'
+      )
+      .eq('id', user.id)
+      .maybeSingle();
 
-  if (!profile) {
-    // Auth user exists but the provisioning trigger hasn't landed yet. Deny by
-    // default rather than assuming privileges.
-    return { ...ANONYMOUS_VIEWER, userId: user.id, isSignedIn: true };
+    if (!profile) {
+      // Auth user exists but the provisioning trigger hasn't landed yet. Deny by
+      // default rather than assuming privileges.
+      return { ...ANONYMOUS_VIEWER, userId: user.id, isSignedIn: true };
+    }
+
+    /*
+     * Anonymity comes from the auth record, not the profile. Supabase sets
+     * `is_anonymous` on sessions created by `signInAnonymously()`, and clears it
+     * once an email or OAuth identity is linked and confirmed — which is exactly
+     * the upgrade path that lets a drive-by voter keep their history.
+     */
+    const isAnonymous = user.is_anonymous === true;
+
+    // Expired Pro silently degrades to verified.
+    const proExpired =
+      profile.is_pro &&
+      profile.pro_expires_at !== null &&
+      new Date(profile.pro_expires_at) < new Date();
+    const isPro = profile.is_pro && !proExpired;
+
+    const tier: Tier = isAnonymous ? 'anonymous' : isPro ? 'pro' : 'verified';
+    const isVerified = !isAnonymous;
+
+    const accountAgeMs = Date.now() - new Date(profile.created_at).getTime();
+    const isOldEnough = accountAgeMs >= MIN_ACCOUNT_AGE_MINUTES * 60_000;
+
+    let fileBlockedReason: FileBlockedReason | null = null;
+    if (!isVerified) fileBlockedReason = 'not_verified';
+    else if (profile.is_banned) fileBlockedReason = 'banned';
+    else if (profile.strikes >= MAX_STRIKES) fileBlockedReason = 'too_many_strikes';
+    else if (!isOldEnough) fileBlockedReason = 'account_too_new';
+
+    return {
+      userId: user.id,
+      tier,
+      handle: profile.handle,
+      isSignedIn: true,
+      isAnonymous,
+      isVerified,
+      isPro,
+      // Admin comes from the database flag, not an env allowlist, so access can be
+      // granted without a redeploy.
+      isAdmin: profile.is_admin === true,
+      voteWeight: TIER_VOTE_WEIGHT[tier],
+      canFile: fileBlockedReason === null,
+      fileBlockedReason,
+      canReport: isVerified && !profile.is_banned,
+      strikes: profile.strikes,
+      karma: profile.karma,
+      isShadowBanned: profile.is_shadow_banned === true,
+    };
+  } catch (err) {
+    console.error('[viewer] getViewer crashed:', err);
+    return ANONYMOUS_VIEWER;
   }
-
-  /*
-   * Anonymity comes from the auth record, not the profile. Supabase sets
-   * `is_anonymous` on sessions created by `signInAnonymously()`, and clears it
-   * once an email or OAuth identity is linked and confirmed — which is exactly
-   * the upgrade path that lets a drive-by voter keep their history.
-   */
-  const isAnonymous = user.is_anonymous === true;
-
-  // Expired Pro silently degrades to verified.
-  const proExpired =
-    profile.is_pro &&
-    profile.pro_expires_at !== null &&
-    new Date(profile.pro_expires_at) < new Date();
-  const isPro = profile.is_pro && !proExpired;
-
-  const tier: Tier = isAnonymous ? 'anonymous' : isPro ? 'pro' : 'verified';
-  const isVerified = !isAnonymous;
-
-  const accountAgeMs = Date.now() - new Date(profile.created_at).getTime();
-  const isOldEnough = accountAgeMs >= MIN_ACCOUNT_AGE_MINUTES * 60_000;
-
-  let fileBlockedReason: FileBlockedReason | null = null;
-  if (!isVerified) fileBlockedReason = 'not_verified';
-  else if (profile.is_banned) fileBlockedReason = 'banned';
-  else if (profile.strikes >= MAX_STRIKES) fileBlockedReason = 'too_many_strikes';
-  else if (!isOldEnough) fileBlockedReason = 'account_too_new';
-
-  return {
-    userId: user.id,
-    tier,
-    handle: profile.handle,
-    isSignedIn: true,
-    isAnonymous,
-    isVerified,
-    isPro,
-    // Admin comes from the database flag, not an env allowlist, so access can be
-    // granted without a redeploy.
-    isAdmin: profile.is_admin === true,
-    voteWeight: TIER_VOTE_WEIGHT[tier],
-    canFile: fileBlockedReason === null,
-    fileBlockedReason,
-    canReport: isVerified && !profile.is_banned,
-    strikes: profile.strikes,
-    karma: profile.karma,
-    isShadowBanned: profile.is_shadow_banned === true,
-  };
 }
 
 /** Throws unless the viewer is an admin. Use in admin routes and actions. */

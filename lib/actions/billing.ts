@@ -54,46 +54,46 @@ const phoneSchema = z
 export async function startProSubscription(
   formData: FormData
 ): Promise<CheckoutResult> {
-  const viewer = await getViewer();
-
-  // Subscribing requires a verified account: an anonymous session can vanish
-  // with a cleared cookie, which would orphan a paid mandate.
-  if (!viewer.isVerified) {
-    return { ok: false, error: 'Verify your account before subscribing.' };
-  }
-  if (viewer.isPro) {
-    return { ok: false, error: 'You are already on RedFlag Pro.' };
-  }
-
-  const parsedPhone = phoneSchema.safeParse(formData.get('phone') ?? '');
-  if (!parsedPhone.success) {
-    return {
-      ok: false,
-      fieldErrors: {
-        phone: parsedPhone.error.issues[0]?.message ?? 'Invalid phone number.',
-      },
-    };
-  }
-
-  const ip = clientIp(await headers());
-  const limit = await checkLimit('checkout', `${viewer.userId}:${ip}`);
-  if (!limit.ok) return { ok: false, error: limitMessage(limit) };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) {
-    return { ok: false, error: 'No email on file. Verify your account first.' };
-  }
-
-  const admin = createServiceClient();
-
-  // A fresh reference per attempt. Cashfree rejects a duplicate subscription_id,
-  // and reusing one across abandoned attempts would wedge the user permanently.
-  const subscriptionRef = `rfgg_${viewer.userId!.replace(/-/g, '').slice(0, 12)}_${nanoid(8)}`;
-
   try {
+    const viewer = await getViewer();
+
+    // Subscribing requires a verified account: an anonymous session can vanish
+    // with a cleared cookie, which would orphan a paid mandate.
+    if (!viewer.isVerified) {
+      return { ok: false, error: 'Verify your account before subscribing.' };
+    }
+    if (viewer.isPro) {
+      return { ok: false, error: 'You are already on RedFlag Pro.' };
+    }
+
+    const parsedPhone = phoneSchema.safeParse(formData.get('phone') ?? '');
+    if (!parsedPhone.success) {
+      return {
+        ok: false,
+        fieldErrors: {
+          phone: parsedPhone.error.issues[0]?.message ?? 'Invalid phone number.',
+        },
+      };
+    }
+
+    const ip = clientIp(await headers());
+    const limit = await checkLimit('checkout', `${viewer.userId}:${ip}`);
+    if (!limit.ok) return { ok: false, error: limitMessage(limit) };
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.email) {
+      return { ok: false, error: 'No email on file. Verify your account first.' };
+    }
+
+    const admin = createServiceClient();
+
+    // A fresh reference per attempt. Cashfree rejects a duplicate subscription_id,
+    // and reusing one across abandoned attempts would wedge the user permanently.
+    const subscriptionRef = `rfgg_${viewer.userId!.replace(/-/g, '').slice(0, 12)}_${nanoid(8)}`;
+
     const subscription = await createSubscription({
       subscriptionRef,
       customerEmail: user.email,
@@ -159,21 +159,21 @@ export async function startProSubscription(
 
 /** Cancels Pro. Access continues until the paid period ends. */
 export async function cancelProSubscription(): Promise<CheckoutResult> {
-  const viewer = await getViewer();
-  if (!viewer.userId) return { ok: false, error: 'Not signed in.' };
-
-  const admin = createServiceClient();
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('cf_subscription_ref')
-    .eq('id', viewer.userId)
-    .maybeSingle();
-
-  if (!profile?.cf_subscription_ref) {
-    return { ok: false, error: 'No subscription on file.' };
-  }
-
   try {
+    const viewer = await getViewer();
+    if (!viewer.userId) return { ok: false, error: 'Not signed in.' };
+
+    const admin = createServiceClient();
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('cf_subscription_ref')
+      .eq('id', viewer.userId)
+      .maybeSingle();
+
+    if (!profile?.cf_subscription_ref) {
+      return { ok: false, error: 'No subscription on file.' };
+    }
+
     const result = await cancelSubscription(profile.cf_subscription_ref);
 
     // Do not clear `is_pro` here — they paid for the current period.
@@ -211,19 +211,19 @@ export async function cancelProSubscription(): Promise<CheckoutResult> {
  * Safe because it reads from Cashfree rather than trusting the query parameter.
  */
 export async function syncSubscriptionStatus(): Promise<{ ok: boolean }> {
-  const viewer = await getViewer();
-  if (!viewer.userId) return { ok: false };
-
-  const admin = createServiceClient();
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('cf_subscription_ref, is_pro')
-    .eq('id', viewer.userId)
-    .maybeSingle();
-
-  if (!profile?.cf_subscription_ref) return { ok: false };
-
   try {
+    const viewer = await getViewer();
+    if (!viewer.userId) return { ok: false };
+
+    const admin = createServiceClient();
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('cf_subscription_ref, is_pro')
+      .eq('id', viewer.userId)
+      .maybeSingle();
+
+    if (!profile?.cf_subscription_ref) return { ok: false };
+
     const subscription = await getSubscription(profile.cf_subscription_ref);
     const isActive = ['ACTIVE', 'AUTHENTICATED'].includes(
       subscription.subscription_status
