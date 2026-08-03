@@ -106,7 +106,8 @@ export async function castVote(
     }
   }
 
-  const { error } = await supabase.from('votes').upsert(
+  const admin = createServiceClient();
+  const { error } = await admin.from('votes').upsert(
     {
       case_id: caseRow.id,
       user_id: viewer.userId,
@@ -114,7 +115,6 @@ export async function castVote(
       weight: viewer.voteWeight,
       device_fingerprint: deviceFingerprint,
       is_anonymous_vote: isAnonymousVote,
-      // Existing column, used here to make a double-submit a no-op.
       idempotency_key: `${caseRow.id}:${viewer.userId}`,
     },
     { onConflict: 'case_id,user_id' }
@@ -132,7 +132,7 @@ export async function castVote(
       return { ok: false, error: 'This device already voted on this case.' };
     }
     console.error('[votes] upsert failed:', error.message);
-    return { ok: false, error: 'Could not record your vote. Try again.' };
+    return { ok: false, error: `Could not record vote: ${error.message}` };
   }
 
   // Read the trigger-maintained tallies back rather than computing them here.
