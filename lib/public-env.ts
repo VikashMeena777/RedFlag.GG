@@ -28,7 +28,13 @@ export const env = {
     );
   },
   get siteUrl() {
-    return process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+    const raw =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (process.env.NEXT_PUBLIC_VERCEL_URL
+        ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+        : undefined) ||
+      'http://localhost:3000';
+    return raw.replace(/\/+$/, '');
   },
   /**
    * Cashfree environment, needed by the browser SDK to pick sandbox vs production.
