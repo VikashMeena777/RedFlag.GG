@@ -115,7 +115,6 @@ export async function castVote(
       weight: viewer.voteWeight,
       device_fingerprint: deviceFingerprint,
       is_anonymous_vote: isAnonymousVote,
-      idempotency_key: `${caseRow.id}:${viewer.userId}`,
     },
     { onConflict: 'case_id,user_id' }
   );
