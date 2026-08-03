@@ -1,122 +1,149 @@
 import Link from 'next/link';
-import { Flame, PenLine } from 'lucide-react';
+import { Flame, PenLine, Shield, Scale, ScrollText } from 'lucide-react';
 import { getViewer } from '@/lib/auth/viewer';
-import { getOpenCaseCount } from '@/lib/actions/cases';
+import { getOpenCaseCount, getDocket } from '@/lib/actions/cases';
 import { LiveDot } from '@/components/ui/neon';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { MarqueeTicker } from '@/components/ui/marquee-ticker';
 
 /**
- * Masthead.
+ * Editorial Masthead.
  *
- * A newspaper nameplate: centred wordmark in the display serif, a hairline
- * beneath, and metadata sitting on that rule. No sticky glass bar — the header
- * scrolls away like the top of a printed page, which is what keeps the reading
- * column feeling like a document rather than an app.
+ * Designed as a high-contrast digital court gazette: centered nameplate,
+ * edition metadata sitting on hairline rules, and high-legibility typography.
  */
 export async function CourtHeader() {
   let viewer: Awaited<ReturnType<typeof getViewer>>;
   let openCount: number;
+  let recentCases: Awaited<ReturnType<typeof getDocket>> = [];
+
   try {
-    [viewer, openCount] = await Promise.all([
+    [viewer, openCount, recentCases] = await Promise.all([
       getViewer(),
       getOpenCaseCount(),
+      getDocket(8),
     ]);
   } catch (err) {
     console.error('[chrome] CourtHeader data fetch failed:', err);
-    // Render with safe defaults so the layout never 500s.
-    viewer = { isPro: false } as Awaited<ReturnType<typeof getViewer>>;
+    viewer = { isPro: false, isSignedIn: false } as Awaited<ReturnType<typeof getViewer>>;
     openCount = 0;
+    recentCases = [];
   }
+
+  const todayDateStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).toUpperCase();
+
+  const tickerItems = recentCases.map((c) => ({
+    id: c.id,
+    publicId: c.publicId,
+    title: c.title,
+    toxicity: c.toxicity,
+  }));
 
   return (
     <header className="border-b border-rule bg-page">
       <div className="court-container-wide">
-        {/* Top line: tiny nav, the way a masthead carries edition info. */}
-        <div className="flex items-center justify-between py-2.5">
-          <Link
-            href="/docket"
-            className="hud transition-colors hover:text-ink"
-          >
-            Most toxic
-          </Link>
+        {/* Top edition bar */}
+        <div className="flex items-center justify-between py-2 text-[11px] font-medium tracking-wider text-ink-faint">
+          <div className="flex items-center gap-3">
+            <span className="hud font-bold text-ink">EDITION NO. 74</span>
+            <span className="hidden sm:inline text-rule-strong">•</span>
+            <span className="hidden sm:inline hud text-ink-muted">{todayDateStr}</span>
+          </div>
 
-          {openCount > 0 && (
-            <span className="hud inline-flex items-center gap-1.5 text-verdict-red">
-              <LiveDot />
-              {openCount} in session
-            </span>
-          )}
+          <div className="flex items-center gap-3.5">
+            {openCount > 0 && (
+              <span className="hud inline-flex items-center gap-1.5 text-verdict-red bg-verdict-red-soft px-2.5 py-0.5 rounded-[2px]">
+                <LiveDot />
+                <span className="font-semibold">{openCount}</span> CASES IN SESSION
+              </span>
+            )}
 
-          <Link
-            href="/account"
-            className="hud transition-colors hover:text-ink"
-          >
-            {viewer.isPro ? 'Pro' : 'Account'}
-          </Link>
+            <Link
+              href="/account"
+              className="hud transition-colors hover:text-ink flex items-center gap-1"
+            >
+              <Shield className="size-3 text-verdict-split" />
+              {viewer.isPro ? 'JUROR (PRO)' : viewer.isSignedIn ? 'ACCOUNT' : 'VERIFY'}
+            </Link>
+
+            <span className="text-rule-strong">•</span>
+
+            <ThemeToggle />
+          </div>
         </div>
 
         <hr className="hairline" />
 
-        {/* Nameplate */}
-        <div className="flex flex-col items-center gap-3 py-7">
+        {/* Masthead Nameplate */}
+        <div className="flex flex-col items-center gap-3 py-6 sm:py-8">
           <Link href="/" className="group text-center">
-            {/*
-              The wordmark is a site-identity mark, not the page heading, so it is
-              a <p> not an <h1>. Each page owns its single <h1> (the docket
-              headline, a case title, "Court rules", etc.) — two <h1>s per page is
-              both an a11y fault and a real regression the e2e suite caught.
-            */}
-            <p className="font-display text-[clamp(2rem,7vw,3rem)] font-semibold leading-none tracking-[-0.03em] text-ink">
-              RedFlag
-              <span className="text-verdict-red">.gg</span>
+            <p className="font-display text-[clamp(2.2rem,8vw,3.4rem)] font-bold leading-none tracking-[-0.035em] text-ink transition-transform duration-200 group-hover:scale-[1.01]">
+              RedFlag<span className="text-verdict-red">.gg</span>
             </p>
           </Link>
 
-          <p className="max-w-sm text-center text-[13px] leading-snug text-ink-muted">
-            The internet court of red flags. Filed anonymously, judged publicly.
+          <p className="max-w-md text-center font-read text-[14px] leading-relaxed text-ink-muted">
+            The internet court of red flags. Anonymous submissions, public jury votes, and AI judicial verdicts.
           </p>
 
-          <div className="mt-1 flex items-center gap-2">
-            <Link href="/file" className="pill pill-ink px-4 py-2 text-sm">
-              <PenLine className="size-3.5" strokeWidth={2} aria-hidden />
-              File a case
+          <div className="mt-2 flex items-center gap-2.5">
+            <Link
+              href="/file"
+              className="pill pill-red px-4.5 py-2 text-xs uppercase tracking-wider font-semibold shadow-xs hover:shadow-sm"
+            >
+              <PenLine className="size-3.5" strokeWidth={2.2} aria-hidden />
+              File a Case
             </Link>
             <Link
               href="/docket"
-              className="pill pill-outline px-4 py-2 text-sm"
+              className="pill pill-outline px-4.5 py-2 text-xs uppercase tracking-wider font-semibold"
             >
-              <Flame className="size-3.5" strokeWidth={2} aria-hidden />
-              Today&rsquo;s worst
+              <Flame className="size-3.5 text-heat" strokeWidth={2.2} aria-hidden />
+              Most Toxic
             </Link>
           </div>
         </div>
       </div>
 
       <hr className="rule-strong" />
+
+      {/* Live Marquee Ticker */}
+      {tickerItems.length > 0 && <MarqueeTicker items={tickerItems} />}
     </header>
   );
 }
 
 export function CourtFooter() {
   return (
-    <footer className="mt-24 border-t border-rule bg-wash py-10">
+    <footer className="mt-24 border-t border-rule bg-wash py-12">
       <div className="court-container-wide">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
-          <p className="font-display text-xl font-semibold tracking-[-0.025em] text-ink">
-            RedFlag<span className="text-verdict-red">.gg</span>
-          </p>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-display text-2xl font-bold tracking-[-0.03em] text-ink">
+              RedFlag<span className="text-verdict-red">.gg</span>
+            </p>
+            <p className="mt-1 text-xs text-ink-muted">The Digital Record & Legal Gazette</p>
+          </div>
 
           <nav className="flex flex-wrap gap-x-6 gap-y-2">
             {(
               [
-                ['/rules', 'Rules'],
-                ['/docket', 'Most toxic'],
-                ['/account', 'Account'],
+                ['/', 'Docket'],
+                ['/file', 'File Case'],
+                ['/rules', 'Court Rules'],
+                ['/docket', 'Most Toxic'],
+                ['/account', 'Juror Account'],
               ] as const
             ).map(([href, label]) => (
               <Link
                 key={href}
                 href={href}
-                className="text-[13px] text-ink-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
+                className="hud text-[11px] text-ink-muted transition-colors hover:text-verdict-red"
               >
                 {label}
               </Link>
@@ -126,11 +153,14 @@ export function CourtFooter() {
 
         <hr className="hairline my-6" />
 
-        <p className="max-w-2xl text-xs leading-relaxed text-ink-faint">
-          Stories are anonymous and user-submitted. Never post names, handles,
-          phone numbers, or anything that identifies a real person. Verdicts are
-          AI-generated entertainment, not advice.
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs leading-relaxed text-ink-faint">
+          <p className="max-w-xl">
+            Cases are anonymous and user-submitted. Personal identifiers, names, phone numbers, or doxxing are strictly prohibited. Verdicts are AI-generated entertainment commentary.
+          </p>
+          <p className="hud text-[10px] text-ink-faint shrink-0">
+            © {new Date().getFullYear()} REDFLAG.GG • ALL RIGHTS RESERVED
+          </p>
+        </div>
       </div>
     </footer>
   );

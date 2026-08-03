@@ -1,4 +1,4 @@
-import { Flame, Scale, Users } from 'lucide-react';
+import { Flame, Scale, Users, ShieldCheck, Quote } from 'lucide-react';
 import { VerdictBadge, SplitBar, HeatBar, Rule, Chip } from '@/components/ui/neon';
 import { formatCaseNo, voteSplit, compactCount, cn } from '@/lib/utils';
 import {
@@ -9,18 +9,10 @@ import {
 } from '@/lib/types';
 
 /**
- * The verdict card: the shareable unit.
+ * Official Judicial Decree / Verdict Card.
  *
- * Set as a printed ruling rather than a UI card — heavy rule above the verdict,
- * the ruling itself as the largest thing on the page in the display serif, then
- * the roast as a pull-quote. At thumbnail size the *word* is what reads, which is
- * the whole point of the editorial direction.
- *
- * Mirrors lib/og/verdict-card.tsx so the on-screen version and the exported PNG
- * are recognisably the same object.
- *
- * Share controls deliberately live outside this component — nothing in here
- * should appear in a screenshot except the ruling itself.
+ * Styled as an official court decree with seal, pull quote, toxicity meter,
+ * and jury breakdown.
  */
 export function VerdictCard({ caseData }: { caseData: CaseView }) {
   const verdict = caseData.verdict;
@@ -29,7 +21,6 @@ export function VerdictCard({ caseData }: { caseData: CaseView }) {
   const split = voteSplit(caseData.redWeight, caseData.greenWeight);
   const ballots = caseData.redVotes + caseData.greenVotes;
 
-  // `split` is a real outcome in this schema, not a failure mode.
   const tone =
     verdict.verdict === 'red'
       ? 'red'
@@ -38,83 +29,90 @@ export function VerdictCard({ caseData }: { caseData: CaseView }) {
         : 'split';
 
   return (
-    <article className="panel px-6 py-8 sm:px-9 sm:py-10">
-      {/* Slug line */}
-      <div className="flex items-center justify-between gap-3">
-        <span className="hud">{formatCaseNo(caseData.publicId)}</span>
-        <span className="hud">{CATEGORY_LABELS[caseData.category]}</span>
+    <article className="panel relative overflow-hidden px-6 py-8 sm:px-10 sm:py-10 rounded-[6px] border border-rule-strong shadow-xs">
+      {/* Official Court Seal Header */}
+      <div className="flex items-center justify-between border-b border-rule pb-4">
+        <div className="flex items-center gap-2">
+          <div className="flex size-7 items-center justify-center rounded-[2px] bg-ink text-page">
+            <Scale className="size-4" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p className="hud font-bold text-ink tracking-widest text-[11px]">THE OFFICIAL VERDICT</p>
+            <p className="text-[11px] text-ink-muted">{formatCaseNo(caseData.publicId)} • {CATEGORY_LABELS[caseData.category]}</p>
+          </div>
+        </div>
+
+        <Chip tone={tone === 'red' ? 'red' : tone === 'green' ? 'green' : 'split'} className="font-bold uppercase tracking-wider px-3 py-1">
+          {VERDICT_LABELS[verdict.verdict]}
+        </Chip>
       </div>
 
-      {/* The story under review, as a standfirst */}
-      <h1 className="mt-5 font-read text-[17px] leading-snug text-ink-muted">
+      {/* Case Headline */}
+      <h1 className="mt-6 font-read text-[18px] sm:text-[20px] font-medium leading-snug text-ink-muted">
         {caseData.title}
       </h1>
 
-      <Rule strong className="mt-7" />
+      <Rule strong className="mt-6 mb-6" />
 
-      {/* The ruling */}
-      <p className="mt-6 hud">The court finds</p>
+      {/* RULING STATEMENT */}
+      <div className="relative">
+        <p className="hud text-[11px] font-semibold text-ink-faint tracking-widest">THE COURT FINDS</p>
 
-      <h2
-        className={cn(
-          'mt-2 animate-fade-up font-display text-[clamp(2rem,8.5vw,3.25rem)] font-semibold leading-[1.02] tracking-[-0.03em]',
-          tone === 'red' && 'text-verdict-red',
-          tone === 'green' && 'text-verdict-green',
-          tone === 'split' && 'text-verdict-split'
-        )}
-      >
-        {verdict.headline}
-      </h2>
-
-      <div className="mt-3">
-        <VerdictBadge tone={tone}>
-          {VERDICT_LABELS[verdict.verdict]}
-        </VerdictBadge>
+        <h2
+          className={cn(
+            'mt-2 animate-fade-up font-display text-[clamp(2.2rem,8vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.035em]',
+            tone === 'red' && 'text-verdict-red',
+            tone === 'green' && 'text-verdict-green',
+            tone === 'split' && 'text-verdict-split'
+          )}
+        >
+          {verdict.headline}
+        </h2>
       </div>
 
-      {/* The roast — the quotable part, set as a pull-quote */}
-      <blockquote className="pullquote mt-7 text-ink">
-        {verdict.roast}
-      </blockquote>
+      {/* Judicial Roast Pull-Quote */}
+      <div className="relative mt-7 rounded-[4px] bg-wash/80 p-5 sm:p-6 border-l-4 border-verdict-red">
+        <Quote className="absolute right-4 top-4 size-6 text-rule-strong opacity-40" />
+        <p className="font-read text-[17px] sm:text-[19px] italic leading-relaxed text-ink font-medium">
+          &ldquo;{verdict.roast}&rdquo;
+        </p>
+      </div>
 
-      <Rule className="my-8" />
-
-      {/* Jury split */}
-      <div>
+      {/* Jury Verdict Split Bar */}
+      <div className="mt-8 pt-6 border-t border-rule">
+        <div className="flex items-center justify-between mb-2 hud text-[11px]">
+          <span className="font-bold text-verdict-red">{split.red}% RED FLAG</span>
+          <span className="inline-flex items-center gap-1.5 font-medium text-ink-muted">
+            <Users className="size-3.5" strokeWidth={2} />
+            {compactCount(ballots)} JURORS VOTED
+          </span>
+          <span className="font-bold text-verdict-green">{split.green}% GREEN FLAG</span>
+        </div>
         <SplitBar
           redPct={split.red}
           greenPct={split.green}
           hasVotes={split.hasVotes}
-          className="h-1.5"
+          className="h-2 rounded-full"
         />
-        <div className="mt-2 flex items-center justify-between hud">
-          <span className="text-verdict-red">
-            {split.hasVotes ? `${split.red}% red flag` : 'No jury'}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Users className="size-3" strokeWidth={2} aria-hidden />
-            {compactCount(ballots)} jurors
-          </span>
-          <span className="text-verdict-green">
-            {split.hasVotes ? `${split.green}% green` : '—'}
-          </span>
-        </div>
       </div>
 
-      {/* Footer: toxicity, judge, record */}
-      <div className="mt-8 flex flex-wrap items-end justify-between gap-5">
-        <div className="min-w-0 flex-1">
-          <p className="hud inline-flex items-center gap-1.5">
-            <Flame className="size-3" strokeWidth={2} aria-hidden />
-            Toxicity {verdict.toxicity}/100
+      {/* Toxicity & Presiding Judge Details */}
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-6 p-4 rounded-[4px] bg-sunk border border-rule/80">
+        <div className="min-w-[160px] flex-1">
+          <p className="hud inline-flex items-center gap-1.5 text-[11px] font-semibold text-heat">
+            <Flame className="size-3.5" strokeWidth={2} />
+            TOXICITY SCORE: {verdict.toxicity}/100
           </p>
-          <HeatBar value={verdict.toxicity} className="mt-2 max-w-[180px]" />
+          <HeatBar value={verdict.toxicity} className="mt-2 h-1.5 rounded-full" />
         </div>
 
-        <Chip tone="split">
-          <Scale className="size-3" strokeWidth={2} aria-hidden />
-          {PERSONA_LABELS[caseData.persona]}
-        </Chip>
+        <div className="flex items-center gap-2">
+          <span className="hud text-[10px] text-ink-faint">PRESIDING JUDGE:</span>
+          <Chip tone="split" className="font-semibold">
+            <Scale className="size-3 text-verdict-split" />
+            {PERSONA_LABELS[caseData.persona]}
+          </Chip>
+        </div>
       </div>
 
       {verdict.summary && (
@@ -123,10 +121,10 @@ export function VerdictCard({ caseData }: { caseData: CaseView }) {
         </p>
       )}
 
-      <Rule className="mt-8" />
+      <hr className="hairline mt-8 mb-4" />
 
-      <p className="mt-4 text-center font-display text-base font-semibold tracking-[-0.025em] text-ink-faint">
-        RedFlag<span className="text-verdict-red">.gg</span>
+      <p className="text-center font-display text-base font-bold tracking-tight text-ink-faint">
+        RedFlag<span className="text-verdict-red">.gg</span> • Official Court Record
       </p>
     </article>
   );

@@ -61,7 +61,7 @@ export default async function ToxicDocketPage() {
           </Link>
         </Panel>
       ) : (
-        <ol className="mt-10 flex flex-col gap-4">
+        <ol className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-5">
           {cases.map((caseData, index) => (
             <li key={caseData.id}>
               <CaseCard

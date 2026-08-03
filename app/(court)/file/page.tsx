@@ -29,7 +29,7 @@ export default async function FileCasePage() {
 
   if (!viewer.canFile) {
     return (
-      <div className="court-container py-12">
+      <div className="court-container-reading py-12">
         <VerificationWall reason={viewer.fileBlockedReason} />
       </div>
     );
@@ -38,7 +38,7 @@ export default async function FileCasePage() {
   const dailyLimit = TIER_DAILY_FILINGS[viewer.tier];
 
   return (
-    <div className="court-container py-10 sm:py-14">
+    <div className="court-container-reading py-8 sm:py-12">
       <p className="hud">New filing</p>
       <h1 className="mt-3 font-display text-[clamp(2.2rem,10vw,3.4rem)] font-semibold leading-[1.02] tracking-[-0.03em]">
         <span className="text-ink">State your</span>{' '}

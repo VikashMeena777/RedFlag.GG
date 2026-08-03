@@ -1,4 +1,4 @@
-﻿import type { Metadata } from 'next';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ShieldAlert, Gavel, EyeOff, Scale } from 'lucide-react';
 import { Panel, Rule } from '@/components/ui/neon';
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
  */
 export default function RulesPage() {
   return (
-    <div className="court-container py-10 sm:py-14">
+    <div className="court-container-reading py-8 sm:py-12">
       <p className="hud">The fine print</p>
       <h1 className="mt-3 font-display text-[clamp(2.2rem,10vw,3.4rem)] font-semibold leading-[1.02] tracking-[-0.03em] text-ink">
         Court rules

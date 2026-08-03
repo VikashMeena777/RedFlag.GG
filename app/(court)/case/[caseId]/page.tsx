@@ -69,7 +69,7 @@ export default async function CasePage({
       : undefined;
 
   return (
-    <div className="court-container py-10">
+    <div className="court-container-reading py-8 sm:py-12">
       <Link
         href="/"
         className="mb-7 inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
