@@ -66,8 +66,15 @@ Read `docs/SECURITY.md` before touching auth, votes, verdicts, or billing.
 3. **Privileged columns are service-role only**: `status`, every `ai_*`,
    `toxicity_score`, `*_votes`, `*_weight`, `report_count`, `verdict_attempts`,
    `public_id`, `author_id`, `is_pro`, `is_admin`, `is_banned`, `strikes`,
-   `cf_subscription_*`. A trigger raises `PRIVILEGED_COLUMN` if anything else
-   touches them.
+   `cf_subscription_*`. Enforced three ways: table-level UPDATE revoked from
+   user roles with only safe columns re-granted (migration 007 — a column
+   REVOKE alone is a silent no-op against a table-level GRANT), the
+   `PRIVILEGED_COLUMN` trigger, and RLS insert policies. The trigger's
+   `is_service_role()` distinguishes user statements (`pg_trigger_depth()` = 1)
+   from trusted trigger-maintained bookkeeping — vote tallies, report counts —
+   reached at depth ≥ 2. Votes and cases are written **only** via the service
+   client; reports are the one user-client write and are gated by
+   `caller_may_report()`.
 4. **Redaction runs before the LLM call**, so raw PII never leaves the server.
 5. **Rate limiters fail CLOSED on client-reachable write paths — but only when a
    limiter is *configured*.** Four states, see `lib/rate-limit.ts`: Upstash
