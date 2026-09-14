@@ -23,7 +23,7 @@ Upstash rate limiting · Cashfree subscriptions · Satori for share cards · Ver
 ```bash
 npm install
 cp .env.example .env.local   # then fill it in
-supabase db push             # applies migration 002 (additive, safe on live data)
+supabase db push             # applies migrations through 003 (additive, safe on live data)
 # enable Anonymous sign-ins in the Supabase dashboard
 npm run dev
 ```
@@ -58,8 +58,8 @@ npm run dev         # Turbopack dev server
 npm run build       # production build
 npm run typecheck   # tsc --noEmit
 npm run lint        # ESLint flat config (next lint was removed in Next 16)
-npm test            # Vitest — 119 tests, incl. property-based
-npm run test:e2e    # Playwright — 44 tests, Chromium + WebKit
+npm test            # Vitest — 162 tests, incl. property-based
+npm run test:e2e    # Playwright — 52 tests, Chromium + mobile WebKit-class
 npm run seed        # realistic cases across open / due / closed
 ```
 
@@ -85,11 +85,11 @@ supabase/migrations/  additive app requirements
 |---|---|
 | `tsc --noEmit` | clean |
 | ESLint | clean |
-| Vitest | 119 passing |
-| Playwright | 44 passing (Chromium + WebKit) |
+| Vitest | 162 passing |
+| Playwright | 52 passing (Chromium + mobile) |
 | Production build | 17 routes |
 | Live database | 3 seeded cases render; privileged-column guard rejects forged verdicts |
-| Supabase advisors | 0 security warnings from app code |
+| Supabase advisors | 0 security warnings from app code (HIBP note: no passwords exist in this app) |
 
 **Not yet exercised against live services:** a real Groq/NIM verdict generation, a
 real Cashfree mandate, and the OG image unfurling in a chat app. Those need

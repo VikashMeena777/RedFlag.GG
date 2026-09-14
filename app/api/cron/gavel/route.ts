@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { serverEnv } from '@/lib/env';
 import { safeEqual } from '@/lib/auth/fingerprint';
-import { findDueCases, closeCase } from '@/lib/court/gavel';
+import { findDueCases, closeCase, pruneRateLimits } from '@/lib/court/gavel';
 
 /**
  * The gavel sweep — closes cases whose jury phase has ended and generates their
@@ -83,6 +83,9 @@ async function sweep(request: NextRequest) {
 
   const startedAt = Date.now();
   const due = await findDueCases(MAX_BATCH);
+
+  // Housekeeping rides along on every sweep; never blocks or fails the sweep.
+  await pruneRateLimits();
 
   if (due.length === 0) {
     return NextResponse.json({ swept: 0, remaining: 0, results: [] });

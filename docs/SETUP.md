@@ -6,7 +6,9 @@
 - A Supabase project
 - A Groq API key (primary verdict provider) and an NVIDIA NIM key (fallback) —
   get the latter at [build.nvidia.com](https://build.nvidia.com)
-- An Upstash Redis database (required in production for rate limiting)
+- Nothing extra: with Upstash unconfigured the app rate-limits through a
+  Postgres fallback (migration 003). Upstash (free tier) is optional and only
+  lowers the latency of each check.
 - A Cashfree merchant account (only if you want RedFlag Pro billing)
 
 ## 2. Install
@@ -83,10 +85,17 @@ While you are there:
 - Enable the **Email** provider. No template editing is needed: verification is
   magic-link only, so the stock `{{ .ConfirmationURL }}` template is correct.
   Add `<your-site>/auth/confirm` to the redirect allowlist.
+- **Email volume, know this before launch:** with the built-in mail service
+  Supabase sends at most **2 emails per hour** (project-wide) — including magic
+  links. Fine for testing, not for traffic. For production, configure custom
+  SMTP (Authentication → SMTP) with any provider (Resend, SES, Brevo…); the app
+  already maps the rate-limit error to a friendly "use Google meanwhile"
+  message, and Google OAuth works regardless.
 - Optionally enable **Google** and add `http://localhost:3000/auth/callback` plus
   your production callback to the redirect allowlist
 - Recommended: enable **leaked password protection** under Authentication →
-  Policies. The Supabase advisor flags it as off by default.
+  Policies. The Supabase advisor flags it as off by default. (This app has no
+  password sign-in at all, so it is defence-in-depth only.)
 
 ## 5. Run
 
@@ -141,9 +150,9 @@ Then visit `/admin/docket`. Non-admins get a generic "nothing here" rather than 
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # ESLint flat config
-npm test            # Vitest — 119 tests
+npm test            # Vitest — 162 tests
 npm run build       # production build
-npx playwright test # 44 e2e tests, Chromium + WebKit
+npx playwright test # 52 e2e tests, Chromium + mobile
 ```
 
 The e2e suite needs browsers once:

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ShieldCheck, Crown, Vote, Scale, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { ShieldCheck, Crown, Vote, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getViewer } from '@/lib/auth/viewer';
 import { syncSubscriptionStatus } from '@/lib/actions/billing';

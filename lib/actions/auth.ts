@@ -18,14 +18,49 @@ import { env } from '@/lib/public-env';
  * an app that looks broken through no fault of theirs. A link works with the
  * stock template and needs no dashboard configuration.
  *
- * Anonymous sign-in was removed: Supabase has anonymous sign-ins disabled on
- * this project. Users must verify via email or Google OAuth to interact.
+ * There is no phone/SMS auth anywhere in this app: sign-in is the emailed magic
+ * link or Google OAuth, and the only phone field (Cashfree checkout) is the
+ * payment provider's own requirement. No OTP provider is needed.
+ *
+ * Anonymous sessions are minted by `castVote` on a visitor's first ballot; the
+ * paths below upgrade such a session in place when the user later verifies.
  */
 
 export interface ActionResult {
   ok: boolean;
   error?: string;
   fieldErrors?: Record<string, string>;
+}
+
+/**
+ * Maps Supabase auth errors to copy a user can act on.
+ *
+ * The important one is the email rate limit: Supabase's built-in mail service
+ * sends at most a couple of emails per hour (project-wide) until custom SMTP is
+ * configured. Surfacing the raw "Email rate limit exceeded" reads as a bug;
+ * pointing at the Google button gives the user a working alternative.
+ */
+function friendlyAuthError(error: {
+  message: string;
+  status?: number;
+  code?: string;
+}): string {
+  const msg = error.message.toLowerCase();
+  const limited =
+    error.code === 'over_email_send_rate_limit' ||
+    error.status === 429 ||
+    msg.includes('rate limit');
+  if (limited) {
+    return 'We can only send a few emails per hour right now. Use "Continue with Google", or request a link again later.';
+  }
+  if (msg.includes('not allowed') || msg.includes('disabled')) {
+    return 'Email sign-in is unavailable right now. Use "Continue with Google".';
+  }
+  if (msg.includes('invalid') || msg.includes('unable')) {
+    return 'That email address was rejected. Check it and try again.';
+  }
+  console.error('[auth] magic link send failed:', error.message);
+  return 'Could not send the link. Please try again.';
 }
 
 /**
@@ -66,7 +101,7 @@ export async function requestVerification(
           ok: false,
           error: error.message.toLowerCase().includes('already')
             ? 'That email is already registered. Use the link we send to sign in.'
-            : `Could not send link: ${error.message}`,
+            : friendlyAuthError(error),
         };
       }
       return { ok: true };
@@ -77,8 +112,7 @@ export async function requestVerification(
       options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
     });
     if (error) {
-      console.error('[auth] magic link send failed:', error.message);
-      return { ok: false, error: `Could not send link: ${error.message}` };
+      return { ok: false, error: friendlyAuthError(error) };
     }
     return { ok: true };
   } catch (err) {
@@ -130,8 +164,9 @@ export async function startGoogleOAuth(): Promise<
 }
 
 /**
- * Signs out. No anonymous session is re-minted since anonymous sign-ins
- * are disabled on this project.
+ * Signs out. No new anonymous session is re-minted here: the next ballot the
+ * user casts will seat a fresh one (see `castVote`), which is the only moment
+ * an identity is actually needed.
  */
 export async function signOut(): Promise<ActionResult> {
   try {

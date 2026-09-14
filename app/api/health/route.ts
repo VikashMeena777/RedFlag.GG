@@ -25,7 +25,10 @@ interface Check {
 export async function GET() {
   const started = Date.now();
 
-  const [database] = await Promise.all([checkDatabase()]);
+  const [database, rateLimiter] = await Promise.all([
+    checkDatabase(),
+    checkRateLimiter(),
+  ]);
 
   // Config presence only — never call a paid provider from a health check, or a
   // monitor polling every 30s becomes a billing line item.
@@ -34,9 +37,6 @@ export async function GET() {
     nvidiaNim: serverEnv.nvidiaApiKey ? 'ok' : 'unconfigured',
   } as const;
 
-  const rateLimiter: Check['status'] =
-    serverEnv.upstashUrl?.startsWith('https') && serverEnv.upstashToken ? 'ok' : 'unconfigured';
-
   const cron: Check['status'] = serverEnv.cronSecret ? 'ok' : 'unconfigured';
 
   // A verdict needs at least one provider; neither configured is degraded, not
@@ -44,10 +44,14 @@ export async function GET() {
   const hasProvider =
     providers.groq === 'ok' || providers.nvidiaNim === 'ok';
 
+  // The limiter is enforced via Upstash OR the Postgres fallback; only when
+  // neither is reachable is the app actually unprotected.
+  const limiterEnforced = rateLimiter === 'upstash' || rateLimiter === 'database';
+
   const status =
     database.status !== 'ok'
       ? 'down'
-      : !hasProvider || rateLimiter !== 'ok' || cron !== 'ok'
+      : !hasProvider || !limiterEnforced || cron !== 'ok'
         ? 'degraded'
         : 'ok';
 
@@ -83,5 +87,32 @@ async function checkDatabase(): Promise<Check> {
   } catch (error) {
     console.error('[health] database unreachable:', error);
     return { status: 'down', latencyMs: Date.now() - started };
+  }
+}
+
+/**
+ * Which rate limiter is live: 'upstash' when configured, 'database' when the
+ * Postgres fallback's table exists, 'unconfigured' when neither — the only
+ * state in which writes go unthrottled.
+ *
+ * A head-count on a tiny table: no row is written and the answer cannot be
+ * cached away from the truth.
+ */
+async function checkRateLimiter(): Promise<'upstash' | 'database' | 'unconfigured'> {
+  if (
+    serverEnv.upstashUrl?.startsWith('https') &&
+    serverEnv.upstashToken
+  ) {
+    return 'upstash';
+  }
+  try {
+    const admin = createServiceClient();
+    const { error } = await admin
+      .from('rate_limits')
+      .select('name', { count: 'exact', head: true })
+      .limit(1);
+    return error ? 'unconfigured' : 'database';
+  } catch {
+    return 'unconfigured';
   }
 }

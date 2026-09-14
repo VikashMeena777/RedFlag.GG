@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Flame, Scale } from 'lucide-react';
+import { Flame } from 'lucide-react';
 
 export function MarqueeTicker({
   items,

@@ -61,12 +61,14 @@ export default async function CasePage({
   const remaining = timeRemaining(caseData.closesAt);
   const weightedTotal = caseData.redWeight + caseData.greenWeight;
 
-  // Why a viewer might not be able to vote. Authors never vote on their own case.
+  /*
+   * Authors never vote on their own case. Everyone else can: a signed-out
+   * visitor is seated as an anonymous juror by `castVote` on their first
+   * ballot, so the jury box is never disabled for them.
+   */
   const voteDisabledReason = caseData.isAuthor
     ? 'This is your case. The jury decides this one.'
-    : !viewer.isSignedIn
-      ? 'Seating you as a juror…'
-      : undefined;
+    : undefined;
 
   return (
     <div className="court-container-reading py-8 sm:py-12">
@@ -137,7 +139,7 @@ export default async function CasePage({
                 initialGreenWeight={caseData.greenWeight}
                 initialBallots={caseData.redVotes + caseData.greenVotes}
                 initialVote={caseData.myVote}
-                disabled={caseData.isAuthor || !viewer.isSignedIn}
+                disabled={caseData.isAuthor}
                 disabledReason={voteDisabledReason}
               />
             )}

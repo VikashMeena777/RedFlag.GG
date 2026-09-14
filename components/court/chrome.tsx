@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Flame, PenLine, Shield, Scale, ScrollText } from 'lucide-react';
+import { Flame, PenLine, Shield } from 'lucide-react';
 import { getViewer } from '@/lib/auth/viewer';
 import { getOpenCaseCount, getDocket } from '@/lib/actions/cases';
 import { LiveDot } from '@/components/ui/neon';

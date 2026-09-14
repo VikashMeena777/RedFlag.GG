@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Mail, ShieldCheck, LogOut, Inbox, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Mail, LogOut, Inbox, CheckCircle2 } from 'lucide-react';
 import {
   requestVerification,
   startGoogleOAuth,

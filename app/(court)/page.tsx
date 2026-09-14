@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Gavel, Flame, PenLine, Scale, ShieldCheck, Sparkles, Filter, ChevronRight, HelpCircle, AlertTriangle } from 'lucide-react';
+import { Gavel, Flame, PenLine, Scale, ChevronRight, HelpCircle, AlertTriangle } from 'lucide-react';
 import { getDocket } from '@/lib/actions/cases';
 import { CaseCard } from '@/components/court/case-card';
 import { Panel, Chip, LiveDot } from '@/components/ui/neon';
 import { timeRemaining } from '@/lib/utils';
-import { CASE_CATEGORIES, CATEGORY_LABELS } from '@/lib/types';
 
 export const metadata: Metadata = {
   title: 'RedFlag.GG — The Internet Court of Red Flags',

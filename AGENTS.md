@@ -57,6 +57,10 @@ Read `docs/SECURITY.md` before touching auth, votes, verdicts, or billing.
 1. **Anonymous users may vote. They may never file a case, report, or subscribe.**
    Enforced in the server action, in `can_file_case()`, and by column grants plus
    a trigger. If you add a new write path, enforce it there too.
+   Anonymous sessions are minted **in `castVote` on a visitor's first ballot**
+   (`signInAnonymously`, IP rate-limited as `anon:mint`) — never in `proxy.ts`,
+   so crawlers never create users. Verifying later upgrades the same session in
+   place, keeping vote history.
 2. **Never trust a tier from the client.** Always derive it server-side via
    `getViewer()` in `lib/auth/viewer.ts`.
 3. **Privileged columns are service-role only**: `status`, every `ai_*`,
@@ -65,14 +69,12 @@ Read `docs/SECURITY.md` before touching auth, votes, verdicts, or billing.
    `cf_subscription_*`. A trigger raises `PRIVILEGED_COLUMN` if anything else
    touches them.
 4. **Redaction runs before the LLM call**, so raw PII never leaves the server.
-5. **Rate limiters fail CLOSED on client-reachable write paths.** If Upstash is
-   unreachable the write is rejected — an outage is exactly when an abuse wave is
-   cheapest to run.
-   The one deliberate exception is `verdict:global`, which fails **open**: it
-   throttles the gavel's own AI calls, only the cron and the lazy on-read fallback
-   can reach it, and failing closed meant that with Upstash unconfigured *no
-   verdict was ever generated* — the limiter silently disabled the core feature.
-   Read the `failOpen` comment in `lib/rate-limit.ts` before changing either.
+5. **Rate limiters fail CLOSED on client-reachable write paths — but only when a
+   limiter is *configured*.** Four states, see `lib/rate-limit.ts`: Upstash
+   configured and failing → fail closed; Upstash unconfigured → the Postgres
+   fallback (`consume_rate_limit`, migration 003) enforces the limit; both
+   unavailable → allow + warn once per limit (a misconfiguration must not
+   disable signup — it did once); over budget → reject with a retry hint.
 6. **Cashfree tier changes only ever happen in the webhook**, after raw-body HMAC
    verification and idempotency. Read the body with `request.text()`; parsing JSON
    first invalidates the signature.
@@ -110,26 +112,29 @@ supabase/migrations/
 
 ## Design system
 
-**"DIGITAL COURTROOM"** — black void, neon evidence, chrome type. Tokens live in
+**"EDITORIAL COURT RECORD"** — a printed gazette: warm paper, near-black ink,
+a high-contrast serif verdict, everything else quiet. Tokens live in
 `app/globals.css` under `@theme` (Tailwind v4; there is no `tailwind.config.ts`).
 
 | | |
 |---|---|
-| Base | `--color-void` `#07060C`, glass panels at 22px radius, 1px hairlines |
-| Verdicts | magenta `#FF2E7E` / lime `#B4FF39` / cyan `#3DE0FF`, announced via `edge-*` bloom |
-| Fonts | Bricolage Grotesque (display, **mixed case**, w800) · Azeret Mono (HUD) · Plus Jakarta Sans (body) |
-| Primitives | `components/ui/neon.tsx` — `Panel`, `NeonButton`, `Chip`, `SplitBar`, `HeatBar`, `Rule`, `LiveDot`, `VerdictBadge` |
+| Base | `--color-page` `#FBFAF7` (warm paper), `--color-ink` `#17161A` (near-black, never pure #000) |
+| Verdicts | `--color-verdict-red` `#B3202B` (stamp red) · judge-blue `#2A1FD6` accents · `split` for ties |
+| Fonts | Fraunces (display, verdict-first type) · Newsreader (reading serif) · Inter (HUD/system) |
+| Modes | Light gazette default, dark "obsidian" mode via `next-themes` (`ThemeToggle`) |
+| Primitives | `components/ui/neon.tsx` — `Panel`, `Chip`, `Rule`, `SplitBar`, `HeatBar`, `LiveDot` (legacy name kept) |
 
-This **replaced** an earlier "Court Brutalism" system (manila paper, black ink,
-Anton, hard offset shadows) because it scored 8/10 visually identical to the
-sibling project `35-SpillBoard` — same token names one hex digit apart, same
-display face, same shadow idiom.
+This **replaced** the earlier "DIGITAL COURTROOM" system (black void, neon
+magenta/lime/cyan, Bricolage Grotesque), which itself replaced "Court
+Brutalism". Two systems have been retired now; both were killed for the same
+reason — visual overlap with sibling projects and illegible verdicts at
+thumbnail size.
 
-**Do not drift back.** Forbidden: paper/manila backgrounds, black hard-offset
-shadows (`6px 6px 0 0`), Anton, uppercase-by-default headings, square-by-default
-geometry, halftone dot screens, yellow highlighter. `e2e/court.spec.ts` asserts
-the retired tokens stay gone and that no element has an offset shadow, so a
-regression fails CI rather than review. Full reference: `docs/DESIGN.md`.
+**Do not drift back.** `e2e/court.spec.ts` asserts the live tokens
+(`--color-page` `#fbfaf7`, `--color-verdict-red` `#b3202b`) and that the retired
+tokens (`--color-void`, `--color-chalk`, `--color-paper`) stay gone, plus that
+no element carries a hard offset shadow — a regression fails CI rather than
+review. Full reference: `docs/DESIGN.md`.
 
 Satori cannot render emoji or Tailwind, so `lib/og/verdict-card.tsx` is inline
 styles only and uses typographic labels instead of 🚩/🟢. It also needs **static**

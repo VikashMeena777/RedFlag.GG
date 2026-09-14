@@ -367,10 +367,47 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** Postgres rate limiter (migration 003). Service-role only. */
+      rate_limits: {
+        Row: {
+          name: string;
+          identifier: string;
+          window_start: string;
+          count: number;
+        };
+        Insert: {
+          name: string;
+          identifier: string;
+          window_start?: string;
+          count?: number;
+        };
+        Update: {
+          window_start?: string;
+          count?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<never, never>;
     Functions: {
       next_public_case_id: { Args: Record<never, never>; Returns: string };
+      /**
+       * Postgres rate limiter (migration 003). Returns one row:
+       * `{ allowed, used, retry_after }`. The RPC is service-role only.
+       */
+      consume_rate_limit: {
+        Args: {
+          p_name: string;
+          p_identifier: string;
+          p_limit: number;
+          p_window_seconds: number;
+        };
+        Returns: {
+          allowed: boolean;
+          used: number;
+          retry_after: number;
+        }[];
+      };
     };
     Enums: {
       case_status: CaseStatusDb;

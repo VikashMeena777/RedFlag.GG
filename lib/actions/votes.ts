@@ -51,18 +51,79 @@ export async function castVote(
     return { ok: false, error: 'Invalid ballot.' };
   }
 
-  const viewer = await getViewer();
-  if (!viewer.userId) {
-    return { ok: false, error: 'Court is still seating you. Try again.' };
-  }
+  const supabase = await createClient();
+  let {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const headerList = await headers();
   const ip = clientIp(headerList);
 
+  /*
+   * Seating a drive-by juror.
+   *
+   * A visitor with no session is minted an anonymous one on their first ballot
+   * — not on every request, so crawlers never create users and only humans who
+   * actually vote get an identity. The session cookie set here persists, and
+   * `getViewer()` below reads it back through the same cookie store, so the
+   * upgrade-in-place path (verify later, keep your votes) works unchanged.
+   *
+   * Supabase applies its own 30-per-hour-per-IP anonymous-signup limit; the
+   * `anon:mint` limit is the app-side belt for that.
+   */
+  if (!user) {
+    const mintLimit = await checkLimit('anon:mint', ip);
+    if (!mintLimit.ok) {
+      return { ok: false, error: limitMessage(mintLimit) };
+    }
+
+    const { error: mintError } = await supabase.auth.signInAnonymously();
+
+    /*
+     * Anonymous sign-ins are a per-project toggle (Auth → Sign In / Providers in
+     * the Supabase dashboard). When it is off, `signInAnonymously` fails with
+     * "Anonymous sign-ins are disabled" — the vote cannot be recorded without an
+     * identity, so the user is pointed at the account page instead of a dead end.
+     */
+    if (mintError) {
+      if (mintError.message.toLowerCase().includes('disabled')) {
+        console.error(
+          '[votes] anonymous sign-ins are disabled on the project — enable under Auth → Sign In / Providers'
+        );
+        return {
+          ok: false,
+          error:
+            'Voting needs a quick sign-in. Verify with email or Google — takes under a minute.',
+        };
+      }
+      console.error('[votes] anonymous session mint failed:', mintError.message);
+      return {
+        ok: false,
+        error: 'Could not seat you as a juror. Refresh the page and try again.',
+      };
+    }
+
+    ({
+      data: { user },
+    } = await supabase.auth.getUser());
+    if (!user) {
+      return {
+        ok: false,
+        error: 'Could not seat you as a juror. Refresh the page and try again.',
+      };
+    }
+  }
+
+  const viewer = await getViewer();
+  if (!viewer.userId) {
+    return {
+      ok: false,
+      error: 'Could not seat you as a juror. Refresh the page and try again.',
+    };
+  }
+
   const limit = await checkLimit('vote', viewer.userId);
   if (!limit.ok) return { ok: false, error: limitMessage(limit) };
-
-  const supabase = await createClient();
 
   const { data: caseRow } = await supabase
     .from('cases')

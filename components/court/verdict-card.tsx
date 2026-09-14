@@ -1,5 +1,5 @@
-import { Flame, Scale, Users, ShieldCheck, Quote } from 'lucide-react';
-import { VerdictBadge, SplitBar, HeatBar, Rule, Chip } from '@/components/ui/neon';
+import { Flame, Scale, Users, Quote } from 'lucide-react';
+import { SplitBar, HeatBar, Rule, Chip } from '@/components/ui/neon';
 import { formatCaseNo, voteSplit, compactCount, cn } from '@/lib/utils';
 import {
   CATEGORY_LABELS,

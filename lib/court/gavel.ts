@@ -64,6 +64,30 @@ function isDue(row: {
 }
 
 /**
+ * Housekeeping for the Postgres rate limiter (migration 003): rows whose window
+ * lapsed a week ago will be reset in place on their next use, but an identifier
+ * that never returns (a one-off IP) leaves its row behind forever. The cron is
+ * the natural place to sweep those.
+ *
+ * Best-effort by design — a failure here must never fail the sweep.
+ */
+export async function pruneRateLimits(): Promise<void> {
+  try {
+    const admin = createServiceClient();
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await admin
+      .from('rate_limits')
+      .delete()
+      .lt('window_start', cutoff);
+    if (error) {
+      console.error('[gavel] rate_limits prune failed:', error.message);
+    }
+  } catch (err) {
+    console.error('[gavel] rate_limits prune crashed:', err);
+  }
+}
+
+/**
  * Cases ready for judgment.
  *
  * There is no `closes_at` column, so the deadline is derived from `created_at`

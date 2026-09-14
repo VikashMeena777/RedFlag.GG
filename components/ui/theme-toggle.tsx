@@ -1,17 +1,24 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  /*
+   * Hydration-safe "mounted" flag without setState-in-effect: the server and
+   * the first client render see `false`, every render after hydration sees
+   * `true`. `next-themes` only knows the real theme on the client, so the icon
+   * must stay neutral until then or the server/client trees disagree.
+   */
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   if (!mounted) {
     return (
