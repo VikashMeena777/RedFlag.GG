@@ -328,7 +328,7 @@ test.describe('protected endpoints', () => {
 
   test('the Cashfree webhook rejects an unsigned payload', async ({ request }) => {
     const response = await request.post('/api/cashfree/webhook', {
-      data: { type: 'SUBSCRIPTION_STATUS_CHANGE_ACTIVE' },
+      data: { type: 'ORDER_PAID', data: { order: { order_id: 'rfgg_x_y' } } },
     });
     // No signature header — must never reach the database.
     expect(response.status()).toBe(401);

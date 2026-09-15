@@ -128,15 +128,12 @@ export const MAX_STRIKES = 3;
 /** Accounts younger than this cannot file, which kills signup-and-spam. */
 export const MIN_ACCOUNT_AGE_MINUTES = 10;
 
-// ── Billing (Cashfree) ─────────────────────────────────────────────────
+// ── Billing (Cashfree Payment Gateway) ──────────────────────────────────
 
-/** RedFlag Pro monthly price in INR. */
+/** RedFlag Pro price in INR — a one-time payment, not a mandate. */
 export const PRO_PRICE_INR = 99;
-/**
- * Debit cap on the mandate. Cashfree auto-completes the subscription once this
- * many cycles run, which bounds an abandoned mandate rather than charging forever.
- */
-export const PRO_MAX_CYCLES = 120;
+/** How long one payment keeps Pro active. No auto-renewal: pay again to extend. */
+export const PRO_DURATION_DAYS = 30;
 
 // ── Verdict payload ────────────────────────────────────────────────────
 

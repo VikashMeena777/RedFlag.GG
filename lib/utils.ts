@@ -79,3 +79,10 @@ export function excerpt(text: string, maxChars: number): string {
   const lastSpace = cut.lastIndexOf(' ');
   return `${(lastSpace > maxChars * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
+
+/** `date + days` as an ISO timestamp. Shared by billing actions and the webhook. */
+export function plusDays(from: Date, days: number): string {
+  const d = new Date(from);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}

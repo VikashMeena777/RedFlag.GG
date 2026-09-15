@@ -1,14 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ShieldCheck, Crown, Vote, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Crown, Vote, AlertCircle, CalendarClock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getViewer } from '@/lib/auth/viewer';
-import { syncSubscriptionStatus } from '@/lib/actions/billing';
+import { syncProStatus } from '@/lib/actions/billing';
 import { VerifyForm } from '@/components/account/verify-form';
 import { SubscribeButton } from '@/components/account/subscribe-button';
-import { CancelSubscriptionButton } from '@/components/account/cancel-subscription-button';
 import { Panel, Chip, Rule } from '@/components/ui/neon';
-import { TIER_DAILY_FILINGS, TIER_VOTE_WEIGHT, PRO_PRICE_INR } from '@/lib/types';
+import {
+  TIER_DAILY_FILINGS,
+  TIER_VOTE_WEIGHT,
+  PRO_PRICE_INR,
+  PRO_DURATION_DAYS,
+} from '@/lib/types';
 
 export const metadata: Metadata = {
   title: 'Juror Standing & Account Verification | RedFlag.GG',
@@ -26,7 +30,7 @@ export default async function AccountPage({
   const { upgraded } = await searchParams;
 
   if (upgraded === '1') {
-    await syncSubscriptionStatus();
+    await syncProStatus();
   }
 
   const viewer = await getViewer();
@@ -138,9 +142,12 @@ export default async function AccountPage({
           </div>
           <div>
             <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-ink">
-              RedFlag Pro Membership
+              RedFlag Pro
             </h2>
-            <p className="text-xs text-ink-muted">Elevate your standing with 2&times; ballot weight and unlimited case filings.</p>
+            <p className="text-xs text-ink-muted">
+              A {PRO_DURATION_DAYS}-day pass: 2&times; ballot weight and unlimited
+              case filings.
+            </p>
           </div>
         </div>
         <Rule className="my-6" />
@@ -162,18 +169,32 @@ export default async function AccountPage({
         </ul>
 
         {viewer.isPro ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             <p className="text-sm font-semibold text-verdict-green flex items-center gap-2">
               <ShieldCheck className="size-4" />
-              Active RedFlag Pro Subscriber. Thank you for supporting the court.
+              RedFlag Pro is active. Thank you for supporting the court.
             </p>
-            <CancelSubscriptionButton />
+            {viewer.proExpiresAt && (
+              <p className="text-xs leading-relaxed text-ink-muted flex items-center gap-2">
+                <CalendarClock className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                Runs until{' '}
+                {new Date(viewer.proExpiresAt).toLocaleDateString('en-IN', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+                . Nothing renews automatically — pay again after it ends only if
+                you want to.
+              </p>
+            )}
           </div>
         ) : viewer.isVerified ? (
           <SubscribeButton />
         ) : (
           <p className="text-xs leading-relaxed text-ink-muted p-3.5 rounded-[4px] bg-wash border border-rule">
-            Verify your email address above first to unlock RedFlag Pro subscription for &#8377;{PRO_PRICE_INR}/month.
+            Verify your email address above first to unlock RedFlag Pro —{' '}
+            &#8377;{PRO_PRICE_INR} for {PRO_DURATION_DAYS} days, one payment, no
+            auto-renewal.
           </p>
         )}
       </Panel>

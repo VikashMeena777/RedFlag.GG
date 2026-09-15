@@ -3,12 +3,19 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { serverEnv } from '@/lib/env';
 
 /**
- * Cashfree Payment Gateway client.
+ * Cashfree Payment Gateway client (one-time orders).
  *
  * Deliberately hand-rolled over `fetch` rather than pulling in `cashfree-pg`:
  * we use exactly two endpoints, the SDK is CommonJS-first and awkward in a
  * Next.js server bundle, and the webhook signature scheme is four lines of
  * crypto. Fewer moving parts in the payment path is worth more than convenience.
+ *
+ * Pro is a one-time 30-day pass, not a recurring mandate: the account only has
+ * the Payment Gateway product (Subscriptions was never enabled), and the site
+ * collects no data beyond the verified email — which is all Cashfree's order
+ * API needs from us. The API schema does require *a* phone value, so a fixed
+ * placeholder is sent; the payer's own UPI/card details are entered by them at
+ * checkout and never touch our servers.
  *
  * API: https://www.cashfree.com/docs/api-reference/payments/latest
  */
@@ -29,7 +36,7 @@ function authHeaders(idempotencyKey?: string): Record<string, string> {
     'x-client-secret': serverEnv.cashfreeSecretKey,
   };
   // Cashfree replays the original response for a repeated key, which makes a
-  // retried create safe rather than duplicating a subscription.
+  // retried create safe rather than duplicating an order.
   if (idempotencyKey) headers['x-idempotency-key'] = idempotencyKey;
   return headers;
 }
@@ -81,103 +88,71 @@ async function request<T>(
   return parsed as T;
 }
 
-// ── Subscriptions ─────────────────────────────────────────────────────────
+// ── Orders (Payment Gateway) ───────────────────────────────────────────────
 
-export interface CreateSubscriptionInput {
-  /** Our own reference; Cashfree treats this as the subscription's primary id. */
-  subscriptionRef: string;
+export interface CreateOrderInput {
+  /** Our own reference; doubles as the order id, so webhooks attribute themselves. */
+  orderRef: string;
+  /** Stable customer identifier on Cashfree's side. */
+  customerId: string;
   customerEmail: string;
-  customerPhone: string;
-  customerName?: string;
   returnUrl: string;
-  /** Monthly price in INR (major units). */
+  /** Price in INR (major units). */
   amount: number;
-  planName: string;
-  /** Cap on total debits before the subscription auto-completes. */
-  maxCycles: number;
+  orderNote: string;
 }
 
-export interface SubscriptionEntity {
-  cf_subscription_id: string;
-  subscription_id: string;
-  subscription_status: string;
-  subscription_session_id?: string;
-  next_schedule_date?: string | null;
-  plan_details?: {
-    plan_recurring_amount?: number;
-    plan_max_cycles?: number;
-  };
+export interface OrderEntity {
+  cf_order_id: string | number;
+  order_id: string;
+  /** ACTIVE until paid, then PAID; EXPIRED if never paid. */
+  order_status: string;
+  order_amount: number;
+  /** Handed to the browser's checkout SDK. */
+  payment_session_id?: string;
 }
 
 /**
- * Creates a PERIODIC monthly subscription.
+ * Creates a one-time payment order.
  *
- * Returns a `subscription_session_id`, which the browser hands to Cashfree's
- * hosted checkout. Note that nothing here grants the tier — that only happens
- * in the webhook after signature verification.
+ * Returns a `payment_session_id`, which the browser hands to Cashfree's
+ * drop-in checkout. Note what is absent: nothing here grants the tier — that
+ * only happens in the webhook after signature verification.
  */
-export async function createSubscription(
-  input: CreateSubscriptionInput
-): Promise<SubscriptionEntity> {
-  const expiry = new Date();
-  expiry.setFullYear(expiry.getFullYear() + 10);
-
-  return request<SubscriptionEntity>('/subscriptions', {
+export async function createProOrder(
+  input: CreateOrderInput
+): Promise<OrderEntity> {
+  return request<OrderEntity>('/orders', {
     method: 'POST',
-    // Keyed on our reference so a double-submit cannot create two subscriptions.
-    idempotencyKey: input.subscriptionRef,
+    // Keyed on our reference so a double-submit cannot create two orders.
+    idempotencyKey: input.orderRef,
     body: {
-      subscription_id: input.subscriptionRef,
+      order_id: input.orderRef,
+      order_amount: input.amount,
+      order_currency: 'INR',
+      order_note: input.orderNote,
       customer_details: {
-        customer_name: input.customerName || 'RedFlag Juror',
+        customer_id: input.customerId,
         customer_email: input.customerEmail,
-        customer_phone: input.customerPhone,
+        /*
+         * The API schema requires a phone value, but this site promises to
+         * collect nothing beyond the verified email. A fixed placeholder is
+         * sent; the payer enters their own UPI ID / card details at checkout,
+         * and those go to Cashfree only.
+         */
+        customer_phone: '9999999999',
       },
-      plan_details: {
-        plan_name: input.planName,
-        plan_type: 'PERIODIC',
-        plan_currency: 'INR',
-        plan_amount: input.amount,
-        plan_max_amount: input.amount,
-        plan_max_cycles: input.maxCycles,
-        plan_intervals: 1,
-        plan_interval_type: 'MONTH',
-        plan_note: 'RedFlag+ monthly membership',
-      },
-      authorization_details: {
-        // ₹1 auth, refunded automatically — standard UPI mandate setup.
-        authorization_amount: 1,
-        authorization_amount_refund: true,
-        payment_methods: ['upi', 'card', 'enach'],
-      },
-      subscription_meta: {
+      order_meta: {
         return_url: input.returnUrl,
-        notification_channel: ['EMAIL'],
       },
-      subscription_expiry_time: expiry.toISOString(),
     },
   });
 }
 
-export async function getSubscription(
-  subscriptionRef: string
-): Promise<SubscriptionEntity> {
-  return request<SubscriptionEntity>(
-    `/subscriptions/${encodeURIComponent(subscriptionRef)}`,
+export async function getOrder(orderRef: string): Promise<OrderEntity> {
+  return request<OrderEntity>(
+    `/orders/${encodeURIComponent(orderRef)}`,
     { method: 'GET' }
-  );
-}
-
-/** Cancels a subscription. Cashfree stops all future debits. */
-export async function cancelSubscription(
-  subscriptionRef: string
-): Promise<SubscriptionEntity> {
-  return request<SubscriptionEntity>(
-    `/subscriptions/${encodeURIComponent(subscriptionRef)}/manage`,
-    {
-      method: 'POST',
-      body: { action: 'CANCEL' },
-    }
   );
 }
 

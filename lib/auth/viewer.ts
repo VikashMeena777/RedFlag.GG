@@ -24,6 +24,8 @@ export interface Viewer {
   isAnonymous: boolean;
   isVerified: boolean;
   isPro: boolean;
+  /** When the current 30-day Pro pass ends; null when not Pro. */
+  proExpiresAt: string | null;
   isAdmin: boolean;
   /** Jury weight this viewer's ballot carries. */
   voteWeight: number;
@@ -56,6 +58,7 @@ const ANONYMOUS_VIEWER: Viewer = {
   isAnonymous: true,
   isVerified: false,
   isPro: false,
+  proExpiresAt: null,
   isAdmin: false,
   voteWeight: TIER_VOTE_WEIGHT.anonymous,
   canFile: false,
@@ -133,6 +136,7 @@ export async function getViewer(): Promise<Viewer> {
       isAnonymous,
       isVerified,
       isPro,
+      proExpiresAt: profile.pro_expires_at ?? null,
       // Admin comes from the database flag, not an env allowlist, so access can be
       // granted without a redeploy.
       isAdmin: profile.is_admin === true,

@@ -2,18 +2,22 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createHash } from 'node:crypto';
 import { verifyWebhookSignature } from '@/lib/billing/cashfree';
 import { createServiceClient } from '@/lib/supabase/service';
-import { PRO_PRICE_INR } from '@/lib/types';
+import { PRO_PRICE_INR, PRO_DURATION_DAYS } from '@/lib/types';
+import { plusDays } from '@/lib/utils';
 
 /**
- * Cashfree webhook — the ONLY place Pro is granted or revoked.
+ * Cashfree webhook — the ONLY place Pro is granted.
  *
  * Hardening, in order:
  *  1. Raw-body signature verification. `request.text()` is mandatory: parsing to
  *     JSON first changes the bytes and invalidates the HMAC.
- *  2. Idempotency via `x-idempotency-header` (unique per payload), stored in
- *     `payments.event_id` with a unique index. Cashfree uses at-least-once
- *     delivery, so a replayed CANCELLED event must not re-revoke a tier the user
- *     has since repurchased.
+ *  2. Idempotency, twice over:
+ *     - `x-idempotency-header` (unique per delivery) in `payments.event_id`
+ *       catches Cashfree's at-least-once retries of the same event.
+ *     - a partial unique index (`payments_order_paid_uniq`, migration 008) on
+ *       the order reference catches a *different* event for the same payment —
+ *     e.g. both ORDER_PAID and PAYMENT_SUCCESS configured — so one purchase can
+ *     never grant twice.
  *  3. Service role for all writes, because `is_pro` / `pro_expires_at` are
  *     trigger-guarded against every other role.
  *
@@ -22,36 +26,31 @@ import { PRO_PRICE_INR } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-/** Events that grant entitlement. */
-const ACTIVATING = new Set([
-  'SUBSCRIPTION_STATUS_CHANGE_ACTIVE',
-  'SUBSCRIPTION_AUTH_STATUS_SUCCESS',
-  'SUBSCRIPTION_PAYMENT_SUCCESS',
-  'SUBSCRIPTION_NEW_PAYMENT_SUCCESS',
-]);
+/** Events that mean money actually arrived. */
+const PAID_EVENTS = new Set(['ORDER_PAID', 'PAYMENT_SUCCESS']);
 
-/** Events that end it. */
-const TERMINATING = new Set([
-  'SUBSCRIPTION_STATUS_CHANGE_CANCELLED',
-  'SUBSCRIPTION_STATUS_CHANGE_COMPLETED',
-  'SUBSCRIPTION_STATUS_CHANGE_EXPIRED',
-  'SUBSCRIPTION_STATUS_CHANGE_ON_HOLD',
+/** Terminal failures worth keeping in the audit trail, no entitlement change. */
+const FAILED_EVENTS = new Set([
+  'PAYMENT_FAILED',
+  'PAYMENT_USER_DROPPED',
+  'PAYMENT_WEBHOOK_VALIDATION_FAILED',
 ]);
 
 interface CashfreeWebhookPayload {
   type?: string;
-  event_time?: string;
   data?: {
-    subscription_details?: {
-      subscription_id?: string;
-      cf_subscription_id?: string;
-      subscription_status?: string;
-      next_schedule_date?: string | null;
+    order?: {
+      order_id?: string;
+      cf_order_id?: string | number;
+      order_amount?: number;
+      order_status?: string;
     };
-    subscription_payment_details?: {
+    payment?: {
+      order_id?: string;
+      cf_payment_id?: string | number;
       payment_status?: string;
-      next_schedule_date?: string | null;
       payment_amount?: number;
+      payment_group?: string;
     };
   };
 }
@@ -75,19 +74,37 @@ export async function POST(request: NextRequest) {
   }
 
   const eventType = payload.type ?? 'UNKNOWN';
-  const details = payload.data?.subscription_details;
-  const subscriptionRef = details?.subscription_id;
 
-  if (!subscriptionRef) {
+  /*
+   * Cashfree has shipped two payload generations: current events nest the
+   * order under data.order, while the older PAYMENT_SUCCESS shape carries the
+   * order reference inside data.payment. Read both; the order id is our own
+   * reference and the attribution key.
+   */
+  const orderRef =
+    payload.data?.order?.order_id ?? payload.data?.payment?.order_id ?? null;
+
+  if (!orderRef) {
     // Nothing to attribute. Ack so Cashfree stops retrying.
-    return NextResponse.json({ received: true, ignored: 'no_subscription_id' });
+    return NextResponse.json({ received: true, ignored: 'no_order_id' });
   }
+
+  if (!PAID_EVENTS.has(eventType) && !FAILED_EVENTS.has(eventType)) {
+    // Unknown but signature-verified: record nothing, ack, and let the audit
+    // trail stay limited to meaningful events.
+    return NextResponse.json({ received: true, ignored: eventType });
+  }
+
+  const amount =
+    payload.data?.order?.order_amount ??
+    payload.data?.payment?.payment_amount ??
+    null;
 
   const admin = createServiceClient();
 
   /*
-   * Idempotency key. Prefer Cashfree's own header; older webhook versions predate
-   * it, so fall back to a hash of the already-verified body.
+   * Idempotency key. Prefer Cashfree's own header; older webhook versions
+   * predate it, so fall back to a hash of the already-verified body.
    */
   const eventId =
     request.headers.get('x-idempotency-header') ??
@@ -96,23 +113,22 @@ export async function POST(request: NextRequest) {
   // Attribute to a user via the reference we generated at checkout.
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, is_pro')
-    .eq('cf_subscription_ref', subscriptionRef)
+    .select('id, is_pro, pro_expires_at')
+    .eq('cf_subscription_ref', orderRef)
     .maybeSingle();
 
   /*
-   * The insert doubles as the dedupe: `payments_event_id_uniq` rejects a replay,
-   * and the row is the audit trail. Done before the entitlement change so a
-   * duplicate delivery cannot re-apply it.
+   * The insert doubles as the first dedupe: `payments_event_id_uniq` rejects a
+   * redelivery. Done before the entitlement change so a duplicate cannot
+   * re-apply it. Paid rows also carry the exact status 'ORDER_PAID', which the
+   * second-layer partial unique index keys on.
    */
   const { error: dedupeError } = await admin.from('payments').insert({
     user_id: profile?.id ?? null,
     provider: 'cashfree',
-    cashfree_subscription_id: details?.cf_subscription_id ?? null,
-    amount_inr:
-      payload.data?.subscription_payment_details?.payment_amount ??
-      (ACTIVATING.has(eventType) ? PRO_PRICE_INR : null),
-    status: `${eventType}:${details?.subscription_status ?? 'unknown'}`,
+    cashfree_subscription_id: orderRef,
+    amount_inr: amount ?? (PAID_EVENTS.has(eventType) ? PRO_PRICE_INR : null),
+    status: PAID_EVENTS.has(eventType) ? 'ORDER_PAID' : `failed:${eventType}`,
     raw_event: payload as never,
     event_id: eventId,
   });
@@ -130,34 +146,29 @@ export async function POST(request: NextRequest) {
   }
 
   if (!profile) {
-    console.warn(`[cashfree] no profile for subscription ${subscriptionRef}`);
+    console.warn(`[cashfree] no profile for order ${orderRef}`);
     return NextResponse.json({
       received: true,
-      ignored: 'unknown_subscription',
+      ignored: 'unknown_order',
     });
   }
 
+  if (!PAID_EVENTS.has(eventType)) {
+    // Failure events are audit-only: no entitlement to change.
+    return NextResponse.json({ received: true });
+  }
+
+  if (amount !== null && amount < PRO_PRICE_INR) {
+    // Signature-verified, so the order is genuinely ours; a lower amount means
+    // the price changed between order creation and payment. Record and grant
+    // anyway — the audit row above preserves the anomaly for reconciliation.
+    console.warn(
+      `[cashfree] order ${orderRef} paid ${amount}, below current price ${PRO_PRICE_INR} — granting anyway`
+    );
+  }
+
   try {
-    if (ACTIVATING.has(eventType)) {
-      await grantPro(
-        profile.id,
-        details?.subscription_status ?? 'ACTIVE',
-        payload.data?.subscription_payment_details?.next_schedule_date ??
-          details?.next_schedule_date ??
-          null
-      );
-    } else if (TERMINATING.has(eventType)) {
-      await revokePro(profile.id, details?.subscription_status ?? 'CANCELLED');
-    } else {
-      // Record the status but leave entitlement alone.
-      await admin
-        .from('profiles')
-        .update({
-          cf_subscription_status: details?.subscription_status ?? eventType,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', profile.id);
-    }
+    await grantProFromPayment(profile.id, profile.pro_expires_at);
   } catch (error) {
     console.error(`[cashfree] handling ${eventType} failed:`, error);
     return NextResponse.json({ error: 'Handler error' }, { status: 500 });
@@ -167,63 +178,32 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Grants Pro through the next scheduled debit.
+ * Grants 30 days of Pro from a paid order.
  *
- * `pro_expires_at` is the grace boundary: `getViewer()` degrades to verified past
- * this instant even if a cancellation webhook never arrives, so a lapsed mandate
- * cannot leave someone on a paid tier indefinitely.
+ * `pro_expires_at` is the boundary `getViewer()` degrades on, so even a missed
+ * webhook cannot leave someone on Pro forever. If Pro is somehow still active
+ * (a race between webhook and sync), the new period extends the existing one
+ * rather than shortening it.
  */
-async function grantPro(
+async function grantProFromPayment(
   userId: string,
-  status: string,
-  nextScheduleDate: string | null
-) {
+  currentExpiry: string | null
+): Promise<void> {
   const admin = createServiceClient();
 
-  const expiresAt = nextScheduleDate
-    ? addGrace(new Date(nextScheduleDate))
-    : addGrace(monthFromNow());
+  const base =
+    currentExpiry && new Date(currentExpiry) > new Date()
+      ? new Date(currentExpiry)
+      : new Date();
 
   const { error } = await admin
     .from('profiles')
     .update({
       is_pro: true,
-      cf_subscription_status: status,
-      pro_expires_at: expiresAt.toISOString(),
+      pro_expires_at: plusDays(base, PRO_DURATION_DAYS),
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId);
 
   if (error) throw new Error(`grant failed: ${error.message}`);
-}
-
-/** Ends Pro. The account stays verified — they still hold a real account. */
-async function revokePro(userId: string, status: string) {
-  const admin = createServiceClient();
-
-  const { error } = await admin
-    .from('profiles')
-    .update({
-      is_pro: false,
-      cf_subscription_status: status,
-      pro_expires_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', userId)
-    .eq('is_pro', true);
-
-  if (error) throw new Error(`revoke failed: ${error.message}`);
-}
-
-function monthFromNow(): Date {
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
-  return d;
-}
-
-/** Two days of slack so a retried debit does not briefly lock a paying user out. */
-function addGrace(date: Date): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + 2);
-  return d;
 }

@@ -16,7 +16,7 @@ roast, and a screenshot-ready card.
 
 Next.js 16 (App Router, Turbopack) · React 19 · Tailwind v4 · Supabase
 (Postgres + anonymous auth) · Groq `llama-3.3-70b` with NVIDIA NIM fallback ·
-Upstash rate limiting · Cashfree subscriptions · Satori for share cards · Vercel
+Upstash-or-Postgres rate limiting · Cashfree Payment Gateway (one-time Pro passes) · Satori for share cards · Vercel
 
 ## Quick start
 

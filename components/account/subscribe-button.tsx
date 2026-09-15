@@ -1,46 +1,43 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { toast } from 'sonner';
-import { Crown, Smartphone } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import { load } from '@cashfreepayments/cashfree-js';
-import { startProSubscription } from '@/lib/actions/billing';
+import { startProCheckout } from '@/lib/actions/billing';
 import { NeonButton } from '@/components/ui/neon';
 import { env } from '@/lib/public-env';
-import { PRO_PRICE_INR } from '@/lib/types';
+import { PRO_PRICE_INR, PRO_DURATION_DAYS } from '@/lib/types';
 
 /**
- * Starts a Cashfree subscription.
+ * Starts the Cashfree Payment Gateway checkout.
  *
- * The action only ever returns a checkout session id — it never grants the tier.
- * That happens in the webhook after HMAC verification, so a user who fakes their
- * way back to `/account?upgraded=1` gains nothing.
+ * The action only ever returns a payment session id — it never grants the
+ * tier. That happens in the webhook after HMAC verification, so a user who
+ * fakes their way back to `/account?upgraded=1` gains nothing.
  *
- * A phone number is collected because Cashfree requires one to set up a UPI or
- * e-NACH mandate. It is sent to Cashfree and never stored by us.
+ * No data is collected here beyond what the verified account already holds:
+ * the email goes to Cashfree with the order; a phone number is neither asked
+ * for nor stored.
  */
 export function SubscribeButton() {
-  const [phone, setPhone] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
 
-  function subscribe(formData: FormData) {
+  function pay() {
     startTransition(async () => {
-      setErrors({});
-      const result = await startProSubscription(formData);
+      const result = await startProCheckout();
 
       if (!result.ok || !result.sessionId) {
-        if (result.fieldErrors) setErrors(result.fieldErrors);
-        if (result.error) toast.error(result.error);
+        toast.error(result.error ?? 'Could not start checkout.');
         return;
       }
 
       try {
         const cashfree = await load({ mode: env.cashfreeMode });
-        // `_self` keeps the mandate flow in the same tab: a popup blocker
-        // silently killing checkout is a worse failure than a full redirect.
-        await cashfree.subscriptionsCheckout({
-          subsSessionId: result.sessionId,
+        // `_self` keeps the payment in the same tab: a popup blocker silently
+        // killing checkout is a worse failure than a full redirect.
+        await cashfree.checkout({
+          paymentSessionId: result.sessionId,
           redirectTarget: '_self',
         });
       } catch (error) {
@@ -51,55 +48,24 @@ export function SubscribeButton() {
   }
 
   return (
-    <form action={subscribe} className="flex flex-col gap-3">
-      <label htmlFor="phone" className="hud">
-        Mobile number for the mandate
-      </label>
-
-      <div className="flex items-stretch gap-2">
-        <span className="panel-sunk flex items-center gap-1.5 px-3.5 text-sm font-medium tabular-nums text-ink-muted">
-          <Smartphone className="size-4" strokeWidth={2} aria-hidden />
-          +91
-        </span>
-        <input
-          id="phone"
-          name="phone"
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel-national"
-          value={phone}
-          onChange={(e) =>
-            setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))
-          }
-          required
-          placeholder="9876543210"
-          aria-invalid={Boolean(errors.phone)}
-          aria-describedby={errors.phone ? 'phone-error' : undefined}
-          className="panel-sunk w-full p-3.5 text-base tabular-nums tracking-[0.04em] text-ink outline-none transition-colors focus:border-verdict-split"
-        />
-      </div>
-
-      {errors.phone && (
-        <p id="phone-error" className="text-xs font-medium text-verdict-red">
-          {errors.phone}
-        </p>
-      )}
-
+    <div className="flex flex-col gap-3">
       <NeonButton
-        type="submit"
+        type="button"
         variant="ink"
-        disabled={isPending || phone.length !== 10}
+        disabled={isPending}
+        onClick={pay}
+        className="self-start px-6"
       >
         <Crown className="size-4" strokeWidth={2} aria-hidden />
         {isPending
           ? 'Opening checkout…'
-          : `Upgrade — \u20B9${PRO_PRICE_INR}/month`}
+          : `Get Pro — \u20B9${PRO_PRICE_INR} for ${PRO_DURATION_DAYS} days`}
       </NeonButton>
 
       <p className="text-xs leading-relaxed text-ink-faint">
-        UPI, card, or net banking mandate via Cashfree. Cancel anytime from this
-        page. A &#8377;1 authorisation is charged and refunded automatically.
+        One-time payment via UPI, card, or net banking. No auto-renewal, no
+        mandate, no phone number — when it ends, pay again only if you want to.
       </p>
-    </form>
+    </div>
   );
 }

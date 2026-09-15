@@ -116,22 +116,28 @@ the docket. **Never point it at production.**
 
 ## 6. Cashfree (optional)
 
+RedFlag Pro is a **one-time ₹99 payment for 30 days** through the standard
+Payment Gateway — no Subscriptions product, no mandate, no auto-renewal, and
+no phone number collected (Cashfree's API schema requires a phone value, so a
+fixed placeholder is sent; the payer's own UPI/card details are entered at
+checkout and never touch this app). The verified account email is the only
+customer data in the order.
+
 1. Get your App ID and Secret Key from **Merchant Dashboard → Developers → API
    Keys**, and set `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY`.
 2. Set both `CASHFREE_ENV` and `NEXT_PUBLIC_CASHFREE_ENV` to `sandbox` while
    testing. They must match — the server picks the API host from the first, the
-   browser SDK from the second.
+   browser SDK picks its host from the second.
 3. Register a webhook at **Developers → Webhooks** pointing at
-   `https://<your-domain>/api/cashfree/webhook`, subscribed to the subscription
-   events. For local testing, tunnel with ngrok and register that URL.
+   `https://<your-domain>/api/cashfree/webhook`, subscribed to **ORDER_PAID**
+   (and optionally PAYMENT_FAILED / PAYMENT_USER_DROPPED for the audit trail).
+   For local testing, tunnel with ngrok and register that URL.
 
-Tier changes happen **only** in the webhook, after HMAC verification. A user
-returning to `/account?upgraded=1` without a verified event gains nothing — the
-page merely triggers a read-only reconciliation against Cashfree.
-
-> Subscriptions require the Subscriptions product to be enabled on your Cashfree
-> account. If `/pg/subscriptions` returns 404, that is why — the code surfaces
-> this as "Subscriptions are not enabled on this merchant account yet."
+Entitlement changes happen **only** in the webhook, after HMAC verification and
+two layers of idempotency (per-delivery event id, plus one paid row per order —
+migration 008). A user returning to `/account?upgraded=1` without a verified
+payment gains nothing — the page merely triggers a read-only reconciliation
+against Cashfree's order status.
 
 ## 7. Admin access
 
