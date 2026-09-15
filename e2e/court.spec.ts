@@ -217,6 +217,20 @@ test.describe('the Pro success page', () => {
   });
 });
 
+test.describe('account deletion', () => {
+  /*
+   * The danger zone must exist only for signed-in sessions — an unauthenticated
+   * visitor should never even see destructive UI, let alone reach the action.
+   */
+  test('is not offered to signed-out visitors', async ({ page }) => {
+    await page.goto('/account');
+    await expect(
+      page.getByText(/delete my juror record/i)
+    ).toHaveCount(0);
+    await expect(page.getByText(/danger zone/i)).toHaveCount(0);
+  });
+});
+
 test.describe('accessibility', () => {
   test('every page has exactly one h1', async ({ page }) => {
     for (const path of ['/', '/docket', '/rules', '/file']) {

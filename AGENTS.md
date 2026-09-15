@@ -87,7 +87,18 @@ Read `docs/SECURITY.md` before touching auth, votes, verdicts, or billing.
    first invalidates the signature.
 7. **New SQL functions need `REVOKE EXECUTE`** from `public`/`anon`/
    `authenticated`. Postgres grants EXECUTE to PUBLIC by default, which exposes
-   trigger functions at `/rest/v1/rpc/<name>`.
+   trigger functions at `/rest/v1/rpc/<name>`. (The two deliberate exceptions:
+   `caller_may_file()` / `caller_may_report()`, granted to `authenticated`
+   because the RLS insert policies call them — they are no-arg and only ever
+   check the caller's own account.)
+8. **Account deletion is self-serve and irreversible** (`deleteMyAccount` in
+   `lib/actions/account.ts`): auth user + profile + ballots + filed cases +
+   reports are erased; payments and moderation logs survive anonymised (their
+   FKs are SET NULL) for accounting and accountability, plus one audit row.
+   Order matters — cases and reports must go while the profile link still
+   exists, or their SET NULL foreign keys orphan them. The action signs the
+   session out first, is confirm-phrase gated, rate-limited as `account:delete`
+   (fails closed), and is safe to re-run after a partial failure.
 8. **TLS-only headers are added at RUNTIME in `proxy.ts`, not in `next.config.ts`.**
    `upgrade-insecure-requests` and HSTS are appended only when the request actually
    arrives over TLS (`x-forwarded-proto`'s *first* hop, or `request.nextUrl.protocol`).

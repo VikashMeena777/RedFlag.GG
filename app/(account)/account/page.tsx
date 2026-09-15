@@ -4,6 +4,7 @@ import { ShieldCheck, Crown, Vote, AlertCircle, CalendarClock } from 'lucide-rea
 import { createClient } from '@/lib/supabase/server';
 import { getViewer } from '@/lib/auth/viewer';
 import { confirmProStatus } from '@/lib/actions/billing';
+import { DeleteAccountButton } from '@/components/account/delete-account-button';
 import { serverEnv } from '@/lib/env';
 import { VerifyForm } from '@/components/account/verify-form';
 import { SubscribeButton } from '@/components/account/subscribe-button';
@@ -206,6 +207,17 @@ export default async function AccountPage() {
           </p>
         )}
       </Panel>
+
+      {/* Danger zone — only for signed-in sessions (verified or anonymous). */}
+      {viewer.isSignedIn && (
+        <Panel className="mt-6 p-6 sm:p-8 rounded-[6px] shadow-xs">
+          <p className="hud text-[10px] font-bold tracking-widest text-ink-faint">
+            DANGER ZONE
+          </p>
+          <Rule className="my-4" />
+          <DeleteAccountButton hasActivePro={viewer.isPro} />
+        </Panel>
+      )}
 
       <p className="mt-8 text-center text-xs text-ink-faint">
         <Link

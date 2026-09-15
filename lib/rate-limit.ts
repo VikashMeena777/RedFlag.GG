@@ -65,7 +65,8 @@ export type LimitName =
   | 'auth:otp'
   | 'checkout'
   | 'anon:mint'
-  | 'sync:status';
+  | 'sync:status'
+  | 'account:delete';
 
 interface LimitSpec {
   requests: number;
@@ -115,6 +116,13 @@ const LIMITS: Record<LimitName, LimitSpec> = {
    * this limit just keeps a hand-crafted loop honest.
    */
   'sync:status': { requests: 30, window: '1 m', failOpen: true },
+  /*
+   * Account deletion. Deliberately fails CLOSED (unlike the other write
+   * limits' unconfigured-allow semantics, which this limiter no longer hits
+   * thanks to the database fallback): when a limiter is unreachable, refusing
+   * a destructive action is the right side to err on.
+   */
+  'account:delete': { requests: 5, window: '1 h', failOpen: false },
 };
 
 /** Window length in seconds, for the database fallback. */
