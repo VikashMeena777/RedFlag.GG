@@ -36,13 +36,13 @@ export const env = {
       'http://localhost:3000';
     return raw.replace(/\/+$/, '');
   },
-  /**
-   * Cashfree environment, needed by the browser SDK to pick sandbox vs production.
-   * Not a secret — the app id and secret stay server-side.
+  /*
+   * There is deliberately no cashfreeMode here.
+   *
+   * The browser checkout SDK needs to know sandbox vs production, but the
+   * server already knows — so the server component that renders the button
+   * passes the mode as a prop. One env var (CASHFREE_ENV, server-side), no
+   * NEXT_PUBLIC duplicate that can drift out of sync and silently break
+   * checkout.
    */
-  get cashfreeMode(): 'sandbox' | 'production' {
-    return process.env.NEXT_PUBLIC_CASHFREE_ENV === 'production'
-      ? 'production'
-      : 'sandbox';
-  },
 } as const;

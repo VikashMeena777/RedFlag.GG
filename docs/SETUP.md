@@ -125,9 +125,10 @@ customer data in the order.
 
 1. Get your App ID and Secret Key from **Merchant Dashboard → Developers → API
    Keys**, and set `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY`.
-2. Set both `CASHFREE_ENV` and `NEXT_PUBLIC_CASHFREE_ENV` to `sandbox` while
-   testing. They must match — the server picks the API host from the first, the
-   browser SDK picks its host from the second.
+2. Set `CASHFREE_ENV` to `sandbox` while testing, `production` for real
+   payments. That single variable drives both the server's API host and the
+   browser checkout SDK (the server passes the mode to the page as a prop), so
+   the two sides cannot disagree.
 3. Register a webhook at **Developers → Webhooks** pointing at
    `https://<your-domain>/api/cashfree/webhook`, subscribed to **ORDER_PAID**
    (and optionally PAYMENT_FAILED / PAYMENT_USER_DROPPED for the audit trail).

@@ -64,7 +64,8 @@ export type LimitName =
   | 'card:download'
   | 'auth:otp'
   | 'checkout'
-  | 'anon:mint';
+  | 'anon:mint'
+  | 'sync:status';
 
 interface LimitSpec {
   requests: number;
@@ -107,6 +108,13 @@ const LIMITS: Record<LimitName, LimitSpec> = {
    * the app-side belt so a config change upstream cannot silently open the tap.
    */
   'anon:mint': { requests: 30, window: '1 h', failOpen: false },
+  /*
+   * The success page's confirmation poll. Fails open on purpose: a limiter
+   * outage must not block payment confirmation, Cashfree rate-limits its own
+   * API, and the bound (15 polls, client-driven) is what actually stops abuse —
+   * this limit just keeps a hand-crafted loop honest.
+   */
+  'sync:status': { requests: 30, window: '1 m', failOpen: true },
 };
 
 /** Window length in seconds, for the database fallback. */

@@ -183,6 +183,40 @@ test.describe('the filing gate', () => {
   });
 });
 
+test.describe('the Pro success page', () => {
+  /*
+   * The post-checkout landing page. Without a session it must degrade to the
+   * collect-your-pass prompt — never an error boundary, and never a fake
+   * celebration (an unauthenticated "Welcome to Pro" would be a lie).
+   */
+  test('shows the collect-your-pass prompt to signed-out visitors', async ({
+    page,
+  }) => {
+    await page.goto('/account/success');
+    await expect(
+      page.getByRole('heading', { name: /sign in to collect/i })
+    ).toBeVisible();
+  });
+
+  test('never celebrates a forged order_id', async ({ page }) => {
+    // ?order_id must never be trusted as proof of payment by itself.
+    await page.goto('/account/success?order_id=rfgg_forged_12345');
+    // Either the poller or the collect prompt — never the celebration.
+    await expect(
+      page.getByRole('heading', { name: /welcome to redflag pro/i })
+    ).toHaveCount(0);
+    await expect(page.locator('main')).toBeVisible();
+  });
+
+  test('is marked noindex — payment pages are nobody\'s search result', async ({
+    request,
+  }) => {
+    const res = await request.get('/account/success');
+    const html = await res.text();
+    expect(html).toMatch(/<meta name="robots" content="[^"]*noindex/);
+  });
+});
+
 test.describe('accessibility', () => {
   test('every page has exactly one h1', async ({ page }) => {
     for (const path of ['/', '/docket', '/rules', '/file']) {

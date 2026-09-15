@@ -4,6 +4,7 @@ import { ShieldCheck, Crown, Vote, AlertCircle, CalendarClock } from 'lucide-rea
 import { createClient } from '@/lib/supabase/server';
 import { getViewer } from '@/lib/auth/viewer';
 import { syncProStatus } from '@/lib/actions/billing';
+import { serverEnv } from '@/lib/env';
 import { VerifyForm } from '@/components/account/verify-form';
 import { SubscribeButton } from '@/components/account/subscribe-button';
 import { Panel, Chip, Rule } from '@/components/ui/neon';
@@ -189,7 +190,7 @@ export default async function AccountPage({
             )}
           </div>
         ) : viewer.isVerified ? (
-          <SubscribeButton />
+          <SubscribeButton mode={serverEnv.cashfreeEnv} />
         ) : (
           <p className="text-xs leading-relaxed text-ink-muted p-3.5 rounded-[4px] bg-wash border border-rule">
             Verify your email address above first to unlock RedFlag Pro —{' '}

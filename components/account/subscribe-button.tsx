@@ -6,21 +6,24 @@ import { Crown } from 'lucide-react';
 import { load } from '@cashfreepayments/cashfree-js';
 import { startProCheckout } from '@/lib/actions/billing';
 import { NeonButton } from '@/components/ui/neon';
-import { env } from '@/lib/public-env';
 import { PRO_PRICE_INR, PRO_DURATION_DAYS } from '@/lib/types';
 
 /**
  * Starts the Cashfree Payment Gateway checkout.
  *
  * The action only ever returns a payment session id — it never grants the
- * tier. That happens in the webhook after HMAC verification, so a user who
- * fakes their way back to `/account?upgraded=1` gains nothing.
+ * tier. That happens after payment confirmation, so a user who fakes their way
+ * to the success page gains nothing.
  *
  * No data is collected here beyond what the verified account already holds:
  * the email goes to Cashfree with the order; a phone number is neither asked
  * for nor stored.
+ *
+ * `mode` arrives as a prop from the server component — there is exactly one
+ * Cashfree env var (CASHFREE_ENV, server-side), so the browser SDK can never
+ * be pointed at a different environment than the API calls.
  */
-export function SubscribeButton() {
+export function SubscribeButton({ mode }: { mode: 'sandbox' | 'production' }) {
   const [isPending, startTransition] = useTransition();
 
   function pay() {
@@ -33,7 +36,7 @@ export function SubscribeButton() {
       }
 
       try {
-        const cashfree = await load({ mode: env.cashfreeMode });
+        const cashfree = await load({ mode });
         // `_self` keeps the payment in the same tab: a popup blocker silently
         // killing checkout is a worse failure than a full redirect.
         await cashfree.checkout({

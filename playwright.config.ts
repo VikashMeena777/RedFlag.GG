@@ -21,7 +21,13 @@ export default defineConfig({
   expect: { timeout: 8_000 },
 
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
+    /*
+     * A dedicated port, deliberately not 3000: sibling projects in this
+     * workspace run their own `next start` on 3000, and `reuseExistingServer`
+     * would silently run this suite against the wrong app (it has happened —
+     * every docket test failed against a ChirplyMint build).
+     */
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3100',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -40,8 +46,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run start',
-    url: 'http://localhost:3000',
+    command: 'npm run start -- --port 3100',
+    url: 'http://localhost:3100',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

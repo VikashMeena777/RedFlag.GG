@@ -1,12 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createHash } from 'node:crypto';
 import { verifyWebhookSignature } from '@/lib/billing/cashfree';
+import {
+  grantProForPaidOrder,
+  recordFailedOrderEvent,
+} from '@/lib/billing/grant';
 import { createServiceClient } from '@/lib/supabase/service';
-import { PRO_PRICE_INR, PRO_DURATION_DAYS } from '@/lib/types';
-import { plusDays } from '@/lib/utils';
+import { PRO_PRICE_INR } from '@/lib/types';
 
 /**
- * Cashfree webhook — the ONLY place Pro is granted.
+ * Cashfree webhook — one of exactly two paths that can grant Pro, and both
+ * funnel through the same one-paid-row-per-order lock.
  *
  * Hardening, in order:
  *  1. Raw-body signature verification. `request.text()` is mandatory: parsing to
@@ -14,10 +18,10 @@ import { plusDays } from '@/lib/utils';
  *  2. Idempotency, twice over:
  *     - `x-idempotency-header` (unique per delivery) in `payments.event_id`
  *       catches Cashfree's at-least-once retries of the same event.
- *     - a partial unique index (`payments_order_paid_uniq`, migration 008) on
- *       the order reference catches a *different* event for the same payment —
- *     e.g. both ORDER_PAID and PAYMENT_SUCCESS configured — so one purchase can
- *     never grant twice.
+ *     - the `payments_order_paid_uniq` partial index (migration 008) catches
+ *       any *other* confirmation of the same order — a second event shape, or
+ *       the post-checkout sync having already granted — so one purchase can
+ *       never grant twice.
  *  3. Service role for all writes, because `is_pro` / `pro_expires_at` are
  *     trigger-guarded against every other role.
  *
@@ -100,7 +104,18 @@ export async function POST(request: NextRequest) {
     payload.data?.payment?.payment_amount ??
     null;
 
+  // Attribute to a user via the reference we generated at checkout.
   const admin = createServiceClient();
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('cf_subscription_ref', orderRef)
+    .maybeSingle();
+
+  if (!profile) {
+    console.warn(`[cashfree] no profile for order ${orderRef}`);
+    return NextResponse.json({ received: true, ignored: 'unknown_order' });
+  }
 
   /*
    * Idempotency key. Prefer Cashfree's own header; older webhook versions
@@ -110,100 +125,41 @@ export async function POST(request: NextRequest) {
     request.headers.get('x-idempotency-header') ??
     createHash('sha256').update(rawBody).digest('hex');
 
-  // Attribute to a user via the reference we generated at checkout.
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('id, is_pro, pro_expires_at')
-    .eq('cf_subscription_ref', orderRef)
-    .maybeSingle();
-
-  /*
-   * The insert doubles as the first dedupe: `payments_event_id_uniq` rejects a
-   * redelivery. Done before the entitlement change so a duplicate cannot
-   * re-apply it. Paid rows also carry the exact status 'ORDER_PAID', which the
-   * second-layer partial unique index keys on.
-   */
-  const { error: dedupeError } = await admin.from('payments').insert({
-    user_id: profile?.id ?? null,
-    provider: 'cashfree',
-    cashfree_subscription_id: orderRef,
-    amount_inr: amount ?? (PAID_EVENTS.has(eventType) ? PRO_PRICE_INR : null),
-    status: PAID_EVENTS.has(eventType) ? 'ORDER_PAID' : `failed:${eventType}`,
-    raw_event: payload as never,
-    event_id: eventId,
-  });
-
-  if (dedupeError) {
-    if (
-      dedupeError.code === '23505' ||
-      dedupeError.message.includes('duplicate')
-    ) {
-      return NextResponse.json({ received: true, duplicate: true });
-    }
-    console.error('[cashfree] audit insert failed:', dedupeError.message);
-    // Fail loudly so Cashfree retries rather than silently dropping the event.
-    return NextResponse.json({ error: 'Storage error' }, { status: 500 });
-  }
-
-  if (!profile) {
-    console.warn(`[cashfree] no profile for order ${orderRef}`);
-    return NextResponse.json({
-      received: true,
-      ignored: 'unknown_order',
-    });
-  }
-
-  if (!PAID_EVENTS.has(eventType)) {
-    // Failure events are audit-only: no entitlement to change.
-    return NextResponse.json({ received: true });
-  }
-
-  if (amount !== null && amount < PRO_PRICE_INR) {
-    // Signature-verified, so the order is genuinely ours; a lower amount means
-    // the price changed between order creation and payment. Record and grant
-    // anyway — the audit row above preserves the anomaly for reconciliation.
-    console.warn(
-      `[cashfree] order ${orderRef} paid ${amount}, below current price ${PRO_PRICE_INR} — granting anyway`
-    );
-  }
-
   try {
-    await grantProFromPayment(profile.id, profile.pro_expires_at);
+    if (PAID_EVENTS.has(eventType)) {
+      if (amount !== null && amount < PRO_PRICE_INR) {
+        // Signature-verified, so the order is genuinely ours; a lower amount
+        // means the price changed between order creation and payment. Grant
+        // anyway — the marker row preserves the anomaly for reconciliation.
+        console.warn(
+          `[cashfree] order ${orderRef} paid ${amount}, below current price ${PRO_PRICE_INR} — granting anyway`
+        );
+      }
+
+      const result = await grantProForPaidOrder(
+        profile.id,
+        orderRef,
+        amount,
+        eventId,
+        payload
+      );
+      return NextResponse.json({
+        received: true,
+        granted: result.granted,
+        duplicate: result.duplicate,
+      });
+    }
+
+    await recordFailedOrderEvent(
+      profile.id,
+      orderRef,
+      eventId,
+      `failed:${eventType}`,
+      payload
+    );
+    return NextResponse.json({ received: true });
   } catch (error) {
     console.error(`[cashfree] handling ${eventType} failed:`, error);
     return NextResponse.json({ error: 'Handler error' }, { status: 500 });
   }
-
-  return NextResponse.json({ received: true });
-}
-
-/**
- * Grants 30 days of Pro from a paid order.
- *
- * `pro_expires_at` is the boundary `getViewer()` degrades on, so even a missed
- * webhook cannot leave someone on Pro forever. If Pro is somehow still active
- * (a race between webhook and sync), the new period extends the existing one
- * rather than shortening it.
- */
-async function grantProFromPayment(
-  userId: string,
-  currentExpiry: string | null
-): Promise<void> {
-  const admin = createServiceClient();
-
-  const base =
-    currentExpiry && new Date(currentExpiry) > new Date()
-      ? new Date(currentExpiry)
-      : new Date();
-
-  const { error } = await admin
-    .from('profiles')
-    .update({
-      is_pro: true,
-      pro_expires_at: plusDays(base, PRO_DURATION_DAYS),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', userId);
-
-  if (error) throw new Error(`grant failed: ${error.message}`);
 }

@@ -49,9 +49,15 @@ export const serverEnv = {
    * papered over are both gone.
    */
 
-  /** Cashfree Payment Gateway. */
-  get cashfreeEnv() {
-    return optional('CASHFREE_ENV') || 'sandbox';
+  /**
+   * Cashfree Payment Gateway environment. ONE variable, server-side only: the
+   * browser checkout SDK receives the mode as a prop from the server component
+   * that renders the button, so the two sides can never disagree. (There used
+   * to be a separate NEXT_PUBLIC_CASHFREE_ENV for the browser; the duplication
+   * was a footgun — mismatched values silently broke checkout.)
+   */
+  get cashfreeEnv(): 'sandbox' | 'production' {
+    return process.env.CASHFREE_ENV === 'production' ? 'production' : 'sandbox';
   },
   get cashfreeAppId() {
     return required('CASHFREE_APP_ID');
