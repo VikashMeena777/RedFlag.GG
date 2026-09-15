@@ -1,7 +1,6 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { revalidatePath } from 'next/cache';
 import { nanoid } from 'nanoid';
 import {
   createProOrder,
@@ -76,9 +75,9 @@ export async function startProCheckout(): Promise<CheckoutResult> {
       orderRef,
       customerId: `rfgg_${viewer.userId!.replace(/-/g, '').slice(0, 16)}`,
       customerEmail: user.email,
-      // Cashfree substitutes {order_id} in the return URL, so the success page
-      // knows exactly which order to reconcile.
-      returnUrl: `${serverEnv.siteUrl}/account/success?order_id={order_id}`,
+      // The reference is embedded literally — no {order_id} placeholder to
+      // depend on Cashfree substituting.
+      returnUrl: `${serverEnv.siteUrl}/account/success?order_id=${orderRef}`,
       amount: PRO_PRICE_INR,
       orderNote: 'RedFlag Pro — 30 days',
     });
@@ -102,12 +101,20 @@ export async function startProCheckout(): Promise<CheckoutResult> {
       .eq('id', viewer.userId!);
 
     // Audit row for the attempt. Status mirrors Cashfree, not our entitlement.
+    // The create response rides along in raw_event: its cf_order_id is what
+    // the sync falls back to when an order cannot be fetched by our reference.
     await admin.from('payments').insert({
       user_id: viewer.userId!,
       provider: 'cashfree',
       cashfree_subscription_id: orderRef,
       amount_inr: PRO_PRICE_INR,
       status: `order_created:${order.order_status}`,
+      raw_event: {
+        cf_order_id: order.cf_order_id,
+        order_id: order.order_id,
+        order_status: order.order_status,
+        order_amount: order.order_amount,
+      } as never,
     });
 
     return { ok: true, sessionId: order.payment_session_id };
@@ -138,16 +145,42 @@ export async function startProCheckout(): Promise<CheckoutResult> {
 }
 
 /**
+ * How far back a checkout attempt can still be reconciled. Long enough to
+ * cover "paid Friday night, opened the site Sunday"; short enough that the
+ * account page's self-heal stops calling Cashfree for ancient abandoned
+ * checkouts on its own.
+ */
+const RECENT_ORDER_WINDOW_HOURS = 48;
+/** Orders checked per sync — a buyer mid-retry-spree should not fan out. */
+const MAX_SYNC_CANDIDATES = 8;
+
+/** Pulls Cashfree's generated id out of the stored checkout audit row. */
+function readCfOrderId(raw: unknown): string | number | undefined {
+  if (raw && typeof raw === 'object' && 'cf_order_id' in raw) {
+    const value = (raw as { cf_order_id?: unknown }).cf_order_id;
+    if (typeof value === 'string' || typeof value === 'number') return value;
+  }
+  return undefined;
+}
+
+/**
  * Reconciles local state with Cashfree on demand.
  *
  * Called by the success page's poller (with the order id from the return URL)
- * and by `/account?upgraded=1` (legacy links, no id). The webhook remains the
- * source of truth; this exists so the buyer sees Pro within seconds even when
- * the webhook is delayed or not yet registered. Safe to call repeatedly: the
- * grant funnels through the same one-paid-row-per-order lock as the webhook.
+ * and by the account page's self-heal. The webhook remains the source of
+ * truth; this exists so the buyer sees Pro within seconds even when the
+ * webhook is delayed or not yet registered.
  *
- * The `orderRef` parameter is never trusted directly — it is only honoured
- * when a checkout-attempt row ties that order to the calling user.
+ * Two hardening rules learned from a real stuck payment (2026-09-15):
+ *  - **Every recent attempt is checked, newest first** — a buyer who paid the
+ *    first order and then started a second checkout must still have the first
+ *    confirmed; the profile's single reference points at the newest only.
+ *  - **The `orderRef` parameter is never trusted directly** — it is honoured
+ *    only when one of the caller's own checkout rows ties it to them.
+ *
+ * Outcomes land in `profiles.cf_subscription_status` (internal, never
+ * displayed) so a failure is diagnosable straight from the database — the
+ * project's Vercel account is personal and team tokens cannot read its logs.
  */
 export async function syncProStatus(orderRef?: string | null): Promise<{
   ok: boolean;
@@ -158,54 +191,87 @@ export async function syncProStatus(orderRef?: string | null): Promise<{
     if (!viewer.userId) return { ok: false };
 
     const admin = createServiceClient();
+    const since = new Date(
+      Date.now() - RECENT_ORDER_WINDOW_HOURS * 60 * 60 * 1000
+    ).toISOString();
 
-    let ref: string | null = null;
+    const { data: attempts } = await admin
+      .from('payments')
+      .select('cashfree_subscription_id, raw_event, created_at')
+      .eq('user_id', viewer.userId)
+      .like('status', 'order_created:%')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(MAX_SYNC_CANDIDATES);
 
+    // The success page's order id goes first — but only once a checkout row
+    // has tied it to this user.
+    const rows = attempts ?? [];
+    const candidates: Array<{ ref: string; cfOrderId?: string | number }> = [];
     if (orderRef) {
-      const { data: attempt } = await admin
-        .from('payments')
-        .select('cashfree_subscription_id')
-        .eq('cashfree_subscription_id', orderRef)
-        .eq('user_id', viewer.userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (attempt) ref = attempt.cashfree_subscription_id;
-    }
-
-    if (!ref) {
-      const { data: profile } = await admin
-        .from('profiles')
-        .select('cf_subscription_ref')
-        .eq('id', viewer.userId)
-        .maybeSingle();
-      ref = profile?.cf_subscription_ref ?? null;
-    }
-
-    if (!ref) return { ok: false };
-
-    const order = await getOrder(ref);
-    const paid = order.order_status === 'PAID';
-
-    if (paid) {
-      await grantProForPaidOrder(
-        viewer.userId,
-        ref,
-        order.order_amount ?? PRO_PRICE_INR,
-        `sync:${ref}`
+      const row = rows.find(
+        (r) => r.cashfree_subscription_id === orderRef
       );
-    } else {
+      if (row) {
+        candidates.push({
+          ref: orderRef,
+          cfOrderId: readCfOrderId(row.raw_event),
+        });
+      }
+    }
+    for (const row of rows) {
+      if (!row.cashfree_subscription_id) continue;
+      if (candidates.some((c) => c.ref === row.cashfree_subscription_id)) {
+        continue;
+      }
+      candidates.push({
+        ref: row.cashfree_subscription_id,
+        cfOrderId: readCfOrderId(row.raw_event),
+      });
+    }
+
+    if (candidates.length === 0) return { ok: false };
+
+    let lastStatus: string | null = null;
+    for (const candidate of candidates) {
+      try {
+        const order = await getOrder(candidate.ref, candidate.cfOrderId);
+        if (order.order_status === 'PAID') {
+          await grantProForPaidOrder(
+            viewer.userId,
+            candidate.ref,
+            order.order_amount ?? PRO_PRICE_INR,
+            `sync:${candidate.ref}`
+          );
+          return { ok: true, paid: true };
+        }
+        lastStatus = order.order_status;
+      } catch (error) {
+        const detail =
+          error instanceof CashfreeApiError
+            ? `${error.status}:${error.code ?? error.message}`
+            : error instanceof Error
+              ? error.message
+              : String(error);
+        console.error(
+          `[billing] order check failed for ${candidate.ref}: ${detail}`
+        );
+        lastStatus = `sync_error:${detail}`.slice(0, 100);
+      }
+    }
+
+    // Nothing paid. Record what we saw so the outcome is readable from the
+    // database and the account page shows the freshest state.
+    if (lastStatus) {
       await admin
         .from('profiles')
         .update({
-          cf_subscription_status: order.order_status,
+          cf_subscription_status: lastStatus,
           updated_at: new Date().toISOString(),
         })
         .eq('id', viewer.userId);
     }
-
-    revalidatePath('/account');
-    return { ok: true, paid };
+    return { ok: true, paid: false };
   } catch (error) {
     console.error('[billing] sync failed:', error);
     return { ok: false };

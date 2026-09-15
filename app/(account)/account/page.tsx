@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ShieldCheck, Crown, Vote, AlertCircle, CalendarClock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getViewer } from '@/lib/auth/viewer';
-import { syncProStatus } from '@/lib/actions/billing';
+import { confirmProStatus } from '@/lib/actions/billing';
 import { serverEnv } from '@/lib/env';
 import { VerifyForm } from '@/components/account/verify-form';
 import { SubscribeButton } from '@/components/account/subscribe-button';
@@ -20,21 +20,28 @@ export const metadata: Metadata = {
   description: 'Verify your juror status to file cases, manage your standing, or upgrade to RedFlag Pro.',
 };
 
+// Per-viewer page (cookies + payment self-heal) — never prerenderable.
+export const dynamic = 'force-dynamic';
+
 /**
  * Account page: Juror Passport & Subscription Management.
  */
-export default async function AccountPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ upgraded?: string }>;
-}) {
-  const { upgraded } = await searchParams;
+export default async function AccountPage() {
+  let viewer = await getViewer();
 
-  if (upgraded === '1') {
-    await syncProStatus();
+  /*
+   * Payment self-heal. A buyer whose confirmation never landed — webhook not
+   * registered yet, an interrupted return, a bank that confirmed late — gets
+   * reconciled on their next visit: their recent checkout attempts are checked
+   * against Cashfree and a paid one activates Pro right here. Gated on a
+   * reference existing so accounts that never touched checkout pay nothing,
+   * and rate-limited server-side (sync:status) so refresh-spam stays bounded.
+   */
+  if (!viewer.isPro && viewer.isVerified && viewer.hasPaymentRef) {
+    await confirmProStatus(null);
+    viewer = await getViewer();
   }
 
-  const viewer = await getViewer();
   const supabase = await createClient();
   const {
     data: { user },

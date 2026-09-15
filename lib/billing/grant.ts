@@ -43,7 +43,7 @@ export async function grantProForPaidOrder(
   // shortening (a renewal paid while still Pro).
   const { data: profile } = await admin
     .from('profiles')
-    .select('pro_expires_at')
+    .select('is_pro, pro_expires_at')
     .eq('id', userId)
     .maybeSingle();
 
@@ -59,9 +59,17 @@ export async function grantProForPaidOrder(
 
   if (error) {
     if (error.code === '23505' || error.message.includes('duplicate')) {
-      return { granted: false, duplicate: true };
+      /*
+       * Repair a torn confirmation: the marker row exists but the profile was
+       * never updated (a failure between the two writes). Only acts when Pro
+       * is genuinely missing — when the first grant went through, this stays a
+       * no-op, which is what keeps the webhook and the sync from stacking 30
+       * days on top of each other.
+       */
+      if (profile?.is_pro) return { granted: false, duplicate: true };
+    } else {
+      throw new Error(`paid-marker insert failed: ${error.message}`);
     }
-    throw new Error(`paid-marker insert failed: ${error.message}`);
   }
 
   const base =

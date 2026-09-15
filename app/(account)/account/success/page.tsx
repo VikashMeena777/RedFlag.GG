@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Per-viewer page (cookies + order reconciliation) — never prerenderable.
+export const dynamic = 'force-dynamic';
+
 /**
  * The post-checkout landing page (Cashfree's return URL).
  *

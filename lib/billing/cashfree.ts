@@ -149,11 +149,36 @@ export async function createProOrder(
   });
 }
 
-export async function getOrder(orderRef: string): Promise<OrderEntity> {
-  return request<OrderEntity>(
-    `/orders/${encodeURIComponent(orderRef)}`,
-    { method: 'GET' }
-  );
+/**
+ * Fetches an order's current status.
+ *
+ * Tries our own reference first; if the account resolves orders only by the
+ * Cashfree-generated id (behaviour has varied across accounts and API
+ * versions), falls back to `cfOrderId` — stored in the checkout audit row at
+ * creation time precisely so this lookup cannot dead-end.
+ */
+export async function getOrder(
+  orderRef: string,
+  cfOrderId?: string | number
+): Promise<OrderEntity> {
+  try {
+    return await request<OrderEntity>(
+      `/orders/${encodeURIComponent(orderRef)}`,
+      { method: 'GET' }
+    );
+  } catch (err) {
+    if (
+      err instanceof CashfreeApiError &&
+      (err.status === 404 || err.status === 400) &&
+      cfOrderId !== undefined
+    ) {
+      return request<OrderEntity>(
+        `/orders/${encodeURIComponent(String(cfOrderId))}`,
+        { method: 'GET' }
+      );
+    }
+    throw err;
+  }
 }
 
 // ── Webhook signature ─────────────────────────────────────────────────────

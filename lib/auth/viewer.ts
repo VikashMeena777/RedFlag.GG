@@ -26,6 +26,12 @@ export interface Viewer {
   isPro: boolean;
   /** When the current 30-day Pro pass ends; null when not Pro. */
   proExpiresAt: string | null;
+  /**
+   * A Cashfree order reference exists for this account (a checkout was
+   * started). Drives the account page's payment self-heal — never exposed to
+   * the client.
+   */
+  hasPaymentRef: boolean;
   isAdmin: boolean;
   /** Jury weight this viewer's ballot carries. */
   voteWeight: number;
@@ -59,6 +65,7 @@ const ANONYMOUS_VIEWER: Viewer = {
   isVerified: false,
   isPro: false,
   proExpiresAt: null,
+  hasPaymentRef: false,
   isAdmin: false,
   voteWeight: TIER_VOTE_WEIGHT.anonymous,
   canFile: false,
@@ -90,7 +97,7 @@ export async function getViewer(): Promise<Viewer> {
     const { data: profile } = await admin
       .from('profiles')
       .select(
-        'handle, karma, is_admin, is_pro, pro_expires_at, is_banned, is_shadow_banned, strikes, created_at'
+        'handle, karma, is_admin, is_pro, pro_expires_at, is_banned, is_shadow_banned, strikes, created_at, cf_subscription_ref'
       )
       .eq('id', user.id)
       .maybeSingle();
@@ -137,6 +144,7 @@ export async function getViewer(): Promise<Viewer> {
       isVerified,
       isPro,
       proExpiresAt: profile.pro_expires_at ?? null,
+      hasPaymentRef: profile.cf_subscription_ref !== null,
       // Admin comes from the database flag, not an env allowlist, so access can be
       // granted without a redeploy.
       isAdmin: profile.is_admin === true,
@@ -149,7 +157,15 @@ export async function getViewer(): Promise<Viewer> {
       isShadowBanned: profile.is_shadow_banned === true,
     };
   } catch (err) {
-    console.error('[viewer] getViewer crashed:', err);
+    /*
+     * Next's static-generation probe calls the page without a request, so
+     * `cookies()` throws "Dynamic server usage" — expected control flow that
+     * marks the route dynamic, not a crash worth logging. Anything else is.
+     */
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.includes('Dynamic server usage')) {
+      console.error('[viewer] getViewer crashed:', message);
+    }
     return ANONYMOUS_VIEWER;
   }
 }

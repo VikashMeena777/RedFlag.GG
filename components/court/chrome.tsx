@@ -24,7 +24,11 @@ export async function CourtHeader() {
       getDocket(8),
     ]);
   } catch (err) {
-    console.error('[chrome] CourtHeader data fetch failed:', err);
+    // "Dynamic server usage" is Next's static-generation probe, not a failure.
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.includes('Dynamic server usage')) {
+      console.error('[chrome] CourtHeader data fetch failed:', message);
+    }
     viewer = { isPro: false, isSignedIn: false } as Awaited<ReturnType<typeof getViewer>>;
     openCount = 0;
     recentCases = [];
